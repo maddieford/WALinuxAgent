@@ -119,10 +119,13 @@ class RedhatOSUtil(Redhat6xOSUtil):
 
     def publish_hostname(self, hostname):
         """
-        Restart NetworkManager first before publishing hostname
+        Update /etc/sysconfig/network-scripts/ifcfg-eth0, and then restart the NetworkManager to publish hostname to DNS
         """
+        logger.info("Publishing hostname {0} to DNS".format(hostname))
+        self.set_dhcp_hostname(hostname)
+        self.set_hostname_record(hostname)
+        logger.info("Restarting NetworkManager")
         shellutil.run("service NetworkManager restart")
-        super(RedhatOSUtil, self).publish_hostname(hostname)
 
     def register_agent_service(self):
         return shellutil.run("systemctl enable {0}".format(self.service_name), chk_err=False)
