@@ -122,6 +122,7 @@ class RedhatOSUtil(Redhat6xOSUtil):
         Update /etc/sysconfig/network-scripts/ifcfg-eth0, and then restart the NetworkManager to publish hostname to DNS
         """
         logger.info("Publishing hostname {0} to DNS".format(hostname))
+        # I am setting hostname using hostnamectl set-hostname in my test, but the agent will also need to do that here
         self.set_dhcp_hostname(hostname)
         self.set_hostname_record(hostname)
         logger.info("Restarting NetworkManager")
