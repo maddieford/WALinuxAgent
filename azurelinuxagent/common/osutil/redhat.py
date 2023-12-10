@@ -121,6 +121,7 @@ class RedhatOSUtil(Redhat6xOSUtil):
         """
         Do not Restart NM while publishing hostname. Only restart IF
         """
+        logger.info("Publishing hostname {0} to DNS".format(hostname))
         super(RedhatOSUtil, self).publish_hostname(hostname)
 
     def register_agent_service(self):
