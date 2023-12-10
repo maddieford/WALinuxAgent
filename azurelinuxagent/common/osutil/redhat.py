@@ -15,7 +15,7 @@
 #
 # Requires Python 2.6+ and Openssl 1.0+
 #
-
+import datetime
 import os  # pylint: disable=W0611
 import re  # pylint: disable=W0611
 import pwd  # pylint: disable=W0611
@@ -121,6 +121,7 @@ class RedhatOSUtil(Redhat6xOSUtil):
         """
         Restart NetworkManager first before publishing hostname
         """
+        logger.info("Restarting NM at {0}".format(datetime.datetime.now()))
         shellutil.run("service NetworkManager restart")
         super(RedhatOSUtil, self).publish_hostname(hostname)
 
