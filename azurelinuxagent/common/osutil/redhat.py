@@ -119,9 +119,8 @@ class RedhatOSUtil(Redhat6xOSUtil):
 
     def publish_hostname(self, hostname):
         """
-        Restart NetworkManager first before publishing hostname
+        Do not Restart NM while publishing hostname. Only restart IF
         """
-        shellutil.run("service NetworkManager restart")
         super(RedhatOSUtil, self).publish_hostname(hostname)
 
     def register_agent_service(self):
