@@ -191,19 +191,20 @@ class CGroupConfigurator(object):
                 if not self.__check_no_legacy_cgroups():
                     return
 
-                agent_unit_name = systemd.get_agent_unit_name()
-                agent_slice = systemd.get_unit_property(agent_unit_name, "Slice")
+                agent_unit_name = systemd.get_agent_unit_name()     # waagent.service or walinuxagent.service
+                agent_slice = systemd.get_unit_property(agent_unit_name, "Slice")       # systemctl show waagent.service --property Slice # Result would look like 'Slice=azure.slice'
                 if agent_slice not in (AZURE_SLICE, "system.slice"):
                     _log_cgroup_warning("The agent is within an unexpected slice: {0}", agent_slice)
                     return
 
-                self.__setup_azure_slice()
+                self.__setup_azure_slice()      # Create slices (azure.slice, azure-vmextensions.slice, azure-walinuxagent-logcollector.slice), and drop in files
 
-                cpu_controller_root, memory_controller_root = self.__get_cgroup_controllers()
+                cpu_controller_root, memory_controller_root = self.__get_cgroup_controllers()           # Gets mount points for CPU and memory controllers (v1: /sys/fs/cgroup/cpu,cpuact, /sys/fs/cgroup/memory
                 self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroups(agent_slice,
                                                                                                        cpu_controller_root,
                                                                                                        memory_controller_root)
 
+                # We do not enable if cpu/memory cgroup paths are None
                 if self._agent_cpu_cgroup_path is not None or self._agent_memory_cgroup_path is not None:
                     self.enable()
 
@@ -350,15 +351,15 @@ class CGroupConfigurator(object):
             # Older agents used to create this slice, but it was never used. Cleanup the file.
             CGroupConfigurator._Impl.__cleanup_unit_file("/etc/systemd/system/system-walinuxagent.extensions.slice")
 
-            unit_file_install_path = systemd.get_unit_file_install_path()
-            azure_slice = os.path.join(unit_file_install_path, AZURE_SLICE)
-            vmextensions_slice = os.path.join(unit_file_install_path, _VMEXTENSIONS_SLICE)
-            logcollector_slice = os.path.join(unit_file_install_path, LOGCOLLECTOR_SLICE)
-            agent_unit_file = systemd.get_agent_unit_file()
-            agent_drop_in_path = systemd.get_agent_drop_in_path()
-            agent_drop_in_file_slice = os.path.join(agent_drop_in_path, _AGENT_DROP_IN_FILE_SLICE)
-            agent_drop_in_file_cpu_accounting = os.path.join(agent_drop_in_path, _DROP_IN_FILE_CPU_ACCOUNTING)
-            agent_drop_in_file_memory_accounting = os.path.join(agent_drop_in_path, _DROP_IN_FILE_MEMORY_ACCOUNTING)
+            unit_file_install_path = systemd.get_unit_file_install_path()                                           # for ex: /lib/systemd/system
+            azure_slice = os.path.join(unit_file_install_path, AZURE_SLICE)                                         # /lib/systemd/system/azure.slice
+            vmextensions_slice = os.path.join(unit_file_install_path, _VMEXTENSIONS_SLICE)                          # /lib/systemd/system/azure-vmextensions.slice
+            logcollector_slice = os.path.join(unit_file_install_path, LOGCOLLECTOR_SLICE)                           # /lib/systemd/system/azure-walinuxagent-logcollector.slice
+            agent_unit_file = systemd.get_agent_unit_file()                                                         # /lib/systemd/system/walinuxagent.service
+            agent_drop_in_path = systemd.get_agent_drop_in_path()                                                   # /lib/systemd/system/walinuxagent.service.d
+            agent_drop_in_file_slice = os.path.join(agent_drop_in_path, _AGENT_DROP_IN_FILE_SLICE)                  # /lib/systemd/system/walinuxagent.service.d/10-Slice.conf
+            agent_drop_in_file_cpu_accounting = os.path.join(agent_drop_in_path, _DROP_IN_FILE_CPU_ACCOUNTING)      # /lib/systemd/system/walinuxagent.service.d/11-CPUAccounting.conf
+            agent_drop_in_file_memory_accounting = os.path.join(agent_drop_in_path, _DROP_IN_FILE_MEMORY_ACCOUNTING)# /lib/systemd/system/walinuxagent.service.d/13-MemoryAccounting.conf
 
             files_to_create = []
 
@@ -473,12 +474,13 @@ class CGroupConfigurator(object):
             return False
 
         def __get_agent_cgroups(self, agent_slice, cpu_controller_root, memory_controller_root):
-            agent_unit_name = systemd.get_agent_unit_name()
+            agent_unit_name = systemd.get_agent_unit_name()                             # walinuxagent.service
 
-            expected_relative_path = os.path.join(agent_slice, agent_unit_name)
+            expected_relative_path = os.path.join(agent_slice, agent_unit_name)         # /azure.slice/walinuxagent.service
             cpu_cgroup_relative_path, memory_cgroup_relative_path = self._cgroups_api.get_process_cgroup_relative_paths(
-                "self")
+                "self")                                                                 # this gives the relative path of the cpu and memory cgroups for the given process (relative to the mount point of the corresponding controller)
 
+            # Here we determine if agent is within a cgroup
             if cpu_cgroup_relative_path is None:
                 _log_cgroup_warning("The agent's process is not within a CPU cgroup")
             else:
