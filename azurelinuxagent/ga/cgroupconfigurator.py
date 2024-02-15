@@ -203,19 +203,27 @@ class CGroupConfigurator(object):
                 self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroups(agent_slice,
                                                                                                        cpu_controller_root,
                                                                                                        memory_controller_root)
+                        # /sys/fs/cgroup/cpu,cpuact/azure.slice/walinuxagent.service, /sys/fs/cgroup/memory/azure.slice/walinuxagent.service
 
                 # We do not enable if cpu/memory cgroup paths are None
+                # We do enable if at least one of them is not None
+                # At this point, cpu cgroup and memory cgroup are None for v2, so we do not enable
                 if self._agent_cpu_cgroup_path is not None or self._agent_memory_cgroup_path is not None:
                     self.enable()
 
                 if self._agent_cpu_cgroup_path is not None:
                     _log_cgroup_info("Agent CPU cgroup: {0}", self._agent_cpu_cgroup_path)
+                    # updates or creates cpu drop in file at /lib/systemd/system/walinuxagent.service.d with cpu quota as 50% and then does systemctl daemon-reload
+                    # also update cgroupstelemetry to track throttled time
                     self.__set_cpu_quota(conf.get_agent_cpu_quota())
+                    # Add new CpuCgroup instance to telemetry tracked cgroups
                     CGroupsTelemetry.track_cgroup(CpuCgroup(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
 
                 if self._agent_memory_cgroup_path is not None:
                     _log_cgroup_info("Agent Memory cgroup: {0}", self._agent_memory_cgroup_path)
+                    # Question - why is _agent_memory_cgroup a class member, but not agent_cpu_cgroup?
                     self._agent_memory_cgroup = MemoryCgroup(AGENT_NAME_TELEMETRY, self._agent_memory_cgroup_path)
+                    # Add new MemoryCGroup instance to telemetry tracked cgroups
                     CGroupsTelemetry.track_cgroup(self._agent_memory_cgroup)
 
                 _log_cgroup_info('Agent cgroups enabled: {0}', self._agent_cgroups_enabled)
@@ -478,15 +486,21 @@ class CGroupConfigurator(object):
 
             expected_relative_path = os.path.join(agent_slice, agent_unit_name)         # /azure.slice/walinuxagent.service
             cpu_cgroup_relative_path, memory_cgroup_relative_path = self._cgroups_api.get_process_cgroup_relative_paths(
-                "self")                                                                 # this gives the relative path of the cpu and memory cgroups for the given process (relative to the mount point of the corresponding controller)
+                "self")                                         # this gives the relative path of the cpu and memory cgroups for the given process
+                                                                # (relative to the mount point of the corresponding controller) by checking the following:
+                                                                # cat /proc/1218/cgroup
+                                                                #    10:memory:/system.slice/walinuxagent.service
+                                                                #    3:cpu,cpuacct:/system.slice/walinuxagent.service
 
-            # Here we determine if agent is within a cgroup
+            # Here we determine if agent is within a cpu cgroup, if result above is None, then agent process is not within a CPU cgroup
             if cpu_cgroup_relative_path is None:
                 _log_cgroup_warning("The agent's process is not within a CPU cgroup")
             else:
+                # If agent is within cgroup and azure.slice, then we check CPUAccounting and Quota for the service using `systemctl show walinuxagent.service --property {prop}`
                 if cpu_cgroup_relative_path == expected_relative_path:
                     _log_cgroup_info('CPUAccounting: {0}', systemd.get_unit_property(agent_unit_name, "CPUAccounting"))
                     _log_cgroup_info('CPUQuota: {0}', systemd.get_unit_property(agent_unit_name, "CPUQuotaPerSecUSec"))
+                # If agent is not in the correct slice/CPU group, do not enable monitoring
                 else:
                     _log_cgroup_warning(
                         "The Agent is not in the expected CPU cgroup; will not enable monitoring. Cgroup:[{0}] Expected:[{1}]",
@@ -494,12 +508,15 @@ class CGroupConfigurator(object):
                         expected_relative_path)
                     cpu_cgroup_relative_path = None  # Set the path to None to prevent monitoring
 
+            # Here we determine if agent is within a memory cgroup, if result above is None, then agent process is not within a memory cgroup
             if memory_cgroup_relative_path is None:
                 _log_cgroup_warning("The agent's process is not within a memory cgroup")
             else:
+                # If agent is within cgroup and azure.slice, then we check MemoryAccounting for the service using `systemctl show walinuxagent.service --property {prop}`
                 if memory_cgroup_relative_path == expected_relative_path:
                     memory_accounting = systemd.get_unit_property(agent_unit_name, "MemoryAccounting")
                     _log_cgroup_info('MemoryAccounting: {0}', memory_accounting)
+                # If agent is not in the correct slice/CPU group, do not enable monitoring
                 else:
                     _log_cgroup_info(
                         "The Agent is not in the expected memory cgroup; will not enable monitoring. CGroup:[{0}] Expected:[{1}]",
@@ -508,12 +525,12 @@ class CGroupConfigurator(object):
                     memory_cgroup_relative_path = None  # Set the path to None to prevent monitoring
 
             if cpu_controller_root is not None and cpu_cgroup_relative_path is not None:
-                agent_cpu_cgroup_path = os.path.join(cpu_controller_root, cpu_cgroup_relative_path)
+                agent_cpu_cgroup_path = os.path.join(cpu_controller_root, cpu_cgroup_relative_path)     # /sys/fs/cgroup/cpu,cpuact/azure.slice/walinuxagent.service
             else:
                 agent_cpu_cgroup_path = None
 
             if memory_controller_root is not None and memory_cgroup_relative_path is not None:
-                agent_memory_cgroup_path = os.path.join(memory_controller_root, memory_cgroup_relative_path)
+                agent_memory_cgroup_path = os.path.join(memory_controller_root, memory_cgroup_relative_path)    # /sys/fs/cgroup/memory/azure.slice/walinuxagent.service
             else:
                 agent_memory_cgroup_path = None
 
@@ -571,7 +588,9 @@ class CGroupConfigurator(object):
             """
             quota_percentage = "{0}%".format(quota)
             _log_cgroup_info("Ensuring the agent's CPUQuota is {0}", quota_percentage)
+            # updates or creates cpu drop in file at /lib/systemd/system/walinuxagent.service.d with cpu quota as 50% and then does systemctl daemon-reload
             if CGroupConfigurator._Impl.__try_set_cpu_quota(quota_percentage):
+                # Set track_throttled_time to true
                 CGroupsTelemetry.set_track_throttled_time(True)
 
         @staticmethod
