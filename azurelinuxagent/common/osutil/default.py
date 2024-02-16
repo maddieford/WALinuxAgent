@@ -1202,8 +1202,8 @@ class DefaultOSUtil(object):
         self.set_hostname_record(hostname)
         ifname = self.get_if_name()
         self.restart_if(ifname)
-        if recover_nic:
-            self.check_and_recover_nic_state(ifname)
+        # if recover_nic:
+        #     self.check_and_recover_nic_state(ifname)
 
     def set_scsi_disks_timeout(self, timeout):
         for dev in os.listdir("/sys/block"):
