@@ -247,9 +247,9 @@ class CpuCgroup(CGroup):
         """
         if self._cpu_usage_initialized():
             raise CGroupsException("initialize_cpu_usage() should be invoked only once")
-        self._current_cgroup_cpu = self._get_cpu_ticks(allow_no_such_file_or_directory_error=True)
-        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot()
-        self._current_throttled_time = self.get_throttled_time()
+        self._current_cgroup_cpu = self._get_cpu_ticks(allow_no_such_file_or_directory_error=True)  # returns sum of user and system time in cpuacct.stat (cpu.stat has these counters on v2)
+        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot() # This doesn't use cgroup api
+        self._current_throttled_time = self.get_throttled_time() # returns throttled time in cpu.stat
 
     def get_cpu_usage(self):
         """
