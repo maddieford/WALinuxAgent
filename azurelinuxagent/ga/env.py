@@ -236,8 +236,9 @@ class EnvHandler(ThreadHandlerInterface):
                 periodic_operations.append(LogFirewallRules(osutil))
             if conf.get_root_device_scsi_timeout() is not None:
                 periodic_operations.append(SetRootDeviceScsiTimeout(osutil))
-            if conf.get_monitor_hostname():
-                periodic_operations.append(MonitorHostNameChanges(osutil))
+            # if conf.get_monitor_hostname():
+            # Going to change conf to no so that original agent doesn't pick up the change, but updated agent will
+            periodic_operations.append(MonitorHostNameChanges(osutil))
             while not self.stopped:
                 try:
                     for op in periodic_operations:
