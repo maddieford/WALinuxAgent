@@ -184,6 +184,7 @@ class CollectLogsHandler(ThreadHandlerInterface):
         # The log tool is invoked from the current agent's egg with the command line option
         collect_logs_cmd = [sys.executable, "-u", sys.argv[0], "-collect-logs"]
         final_command = systemd_cmd + collect_logs_cmd
+        logger.info("final_command={0}".format(final_command))
 
         def exec_command():
             start_time = datetime.datetime.utcnow()

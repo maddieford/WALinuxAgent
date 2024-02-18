@@ -208,6 +208,7 @@ class Agent(object):
         log_collector_monitor = None
         cgroups_api = SystemdCgroupsApi()
         cpu_cgroup_path, memory_cgroup_path = cgroups_api.get_process_cgroup_paths("self")
+        logger.info("cpu_cgroup_path={0}; memory_cgroup_path={1}".format(cpu_cgroup_path, memory_cgroup_path))
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
             cpu_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in cpu_cgroup_path)
             memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
