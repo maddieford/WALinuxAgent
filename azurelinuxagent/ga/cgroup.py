@@ -88,6 +88,7 @@ class MetricsCounter(object):
 re_user_system_times = re.compile(r'user (\d+)\nsystem (\d+)\n')
 
 
+# Think of these classes as representations for the controllers
 class CGroup(object):
     def __init__(self, name, cgroup_path):
         """

@@ -139,6 +139,7 @@ class CGroupConfigurator(object):
             self._initialized = False
             self._cgroups_supported = False
             self._agent_cgroups_enabled = False
+            self._cgroupsv2_logcollector_enabled = False
             self._extensions_cgroups_enabled = False
             self._cgroups_api = None
             self._agent_cpu_cgroup_path = None
@@ -204,6 +205,11 @@ class CGroupConfigurator(object):
                                                                                                        cpu_controller_root,
                                                                                                        memory_controller_root)
                         # /sys/fs/cgroup/cpu,cpuact/azure.slice/walinuxagent.service, /sys/fs/cgroup/memory/azure.slice/walinuxagent.service
+
+                # Right now we want to enable log collector for v2, but not agent/extensions
+                if "cgroup2fs" in shellutil.run_command(["stat", "-fc", "%T", "/sys/fs/cgroup/"]):
+                    logger.info("Cgroupsv2_logcollector_enabled=True")
+                    self._cgroupsv2_logcollector_enabled = True
 
                 # We do not enable if cpu/memory cgroup paths are None
                 # We do enable if at least one of them is not None
@@ -491,7 +497,8 @@ class CGroupConfigurator(object):
                                                                 # cat /proc/1218/cgroup
                                                                 #    10:memory:/system.slice/walinuxagent.service
                                                                 #    3:cpu,cpuacct:/system.slice/walinuxagent.service
-
+            logger.info("cpu_cgroup_relative_path={0}; memory_cgroup_relative_path={1}".format(self._agent_cpu_cgroup_path,
+                                                                                         self._agent_memory_cgroup_path))
             # Here we determine if agent is within a cpu cgroup, if result above is None, then agent process is not within a CPU cgroup
             if cpu_cgroup_relative_path is None:
                 _log_cgroup_warning("The agent's process is not within a CPU cgroup")
@@ -541,6 +548,9 @@ class CGroupConfigurator(object):
 
         def enabled(self):
             return self._agent_cgroups_enabled or self._extensions_cgroups_enabled
+
+        def cgroupsv2_logcollector_enabled(self):
+            return self._cgroupsv2_logcollector_enabled
 
         def agent_enabled(self):
             return self._agent_cgroups_enabled

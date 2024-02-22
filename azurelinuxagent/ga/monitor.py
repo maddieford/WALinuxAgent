@@ -64,6 +64,7 @@ class PollResourceUsage(PeriodicOperation):
                 report_metric(metric.category, metric.counter, metric.instance, metric.value, log_event=self.__log_metrics)
                 self.__periodic_metrics[key] = datetime.datetime.now()
 
+        # This disables cgroups if check doesn't pass - should probably be renamed to indicate that
         CGroupConfigurator.get_instance().check_cgroups(tracked_metrics)
 
 

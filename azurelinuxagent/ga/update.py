@@ -383,6 +383,7 @@ class UpdateHandler(object):
                 get_collect_telemetry_events_handler(telemetry_handler)
             ]
 
+            # Periodically collect logs if allowed
             if is_log_collection_allowed():
                 all_thread_handlers.append(get_collect_logs_handler())
 

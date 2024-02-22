@@ -210,6 +210,7 @@ class Agent(object):
         cpu_cgroup_path, memory_cgroup_path = cgroups_api.get_process_cgroup_paths("self")
         logger.info("cpu_cgroup_path={0}; memory_cgroup_path={1}".format(cpu_cgroup_path, memory_cgroup_path))
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
+            logger.info("Check cpu and memory slices match...")
             cpu_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in cpu_cgroup_path)
             memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
 
@@ -236,10 +237,11 @@ class Agent(object):
             log_collector = LogCollector(is_full_mode)
             # Running log collector resource(CPU, Memory) monitoring only if agent starts the log collector.
             # If Log collector start by any other means, then it will not be monitored.
-            if CollectLogsHandler.is_enabled_monitor_cgroups_check():
-                tracked_cgroups = initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path)
-                log_collector_monitor = get_log_collector_monitor_handler(tracked_cgroups)
-                log_collector_monitor.run()
+            logger.info("Skip monitoring for now, we just want to make sure log collector is started in the right cgroups/slice on v2")
+            # if CollectLogsHandler.is_enabled_monitor_cgroups_check():
+            #     tracked_cgroups = initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path)
+            #     log_collector_monitor = get_log_collector_monitor_handler(tracked_cgroups)
+            #     log_collector_monitor.run()
             archive = log_collector.collect_logs_and_get_archive()
             logger.info("Log collection successfully completed. Archive can be found at {0} "
                   "and detailed log output can be found at {1}".format(archive, OUTPUT_RESULTS_FILE_PATH))
@@ -247,6 +249,7 @@ class Agent(object):
             logger.error("Log collection completed unsuccessfully. Error: {0}".format(ustr(e)))
             logger.info("Detailed log output can be found at {0}".format(OUTPUT_RESULTS_FILE_PATH))
             sys.exit(1)
+            # Should we stop tracking cgroups in this case?
         finally:
             if log_collector_monitor is not None:
                 log_collector_monitor.stop()

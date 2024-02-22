@@ -188,6 +188,17 @@ class SystemdCgroupsApi(CGroupsApi):
                 else:
                     cpu_path = path
 
+        # Get cgroup2 relative path
+        # The contents of the file are similar to
+        #    # cat /proc/1218/cgroup
+        #    0::/azure.slice/walinuxagent.service
+        if cpu_path is None and memory_path is None:
+            match = re.match(r'\d+::(?P<path>.+)', line)
+            if match:
+                path = match.group('path').lstrip('/') if match.group('path') != '/' else None
+                cpu_path = path
+                memory_path = path
+
         return cpu_path, memory_path
 
     def get_process_cgroup_paths(self, process_id):
@@ -198,6 +209,11 @@ class SystemdCgroupsApi(CGroupsApi):
         cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
 
         cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+
+        # Add this for now to test out v2
+        if cpu_mount_point is None and memory_mount_point is None:
+            cpu_mount_point = "/sys/fs/cgroup"
+            memory_mount_point = "/sys/fs/cgroup"
 
         cpu_cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path) \
             if cpu_mount_point is not None and cpu_cgroup_relative_path is not None else None
