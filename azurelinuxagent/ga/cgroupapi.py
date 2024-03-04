@@ -151,6 +151,7 @@ class SystemdCgroupsApi(CGroupsApi):
         if self._cgroup_mountpoints is None:
             cpu = None
             memory = None
+            # TODO: this should be changed to findmnt -t cgroup2 --noheadings
             for line in shellutil.run_command(['mount', '-t', 'cgroup']).splitlines():
                 match = re.search(r'on\s+(?P<path>/\S+(memory|cpuacct))\s', line)
                 if match is not None:
