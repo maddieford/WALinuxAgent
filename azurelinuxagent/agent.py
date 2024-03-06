@@ -30,7 +30,7 @@ import sys
 import threading
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
 from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import SystemdCgroupsApi
+from azurelinuxagent.ga.cgroupapi import SystemdCgroupsApi, get_cgroup_api
 
 import azurelinuxagent.common.conf as conf
 import azurelinuxagent.common.event as event
@@ -206,11 +206,18 @@ class Agent(object):
 
         # Check the cgroups unit
         log_collector_monitor = None
-        cgroups_api = SystemdCgroupsApi()
-        cpu_cgroup_path, memory_cgroup_path = cgroups_api.get_process_cgroup_paths("self")
+        cgroups_api = get_cgroup_api()
+        cpu_cgroup_path = None
+        memory_cgroup_path = None
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
+            if cgroups_api is None:
+                logger.info("Unable to determine what version of cgroups to use.")
+                sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
+
+            cpu_cgroup_path, memory_cgroup_path = cgroups_api.get_process_cgroup_paths("self")
             cpu_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in cpu_cgroup_path)
             memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
+            # TODO: We need to check that both controllers are mounted in v1, or both controllers are mounted in v2
 
             if not cpu_slice_matches or not memory_slice_matches:
                 logger.info("The Log Collector process is not in the proper cgroups:")
@@ -222,6 +229,7 @@ class Agent(object):
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
         def initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path):
+            # TODO: need to handle tracking logic
             cpu_cgroup = CpuCgroup(AGENT_LOG_COLLECTOR, cpu_cgroup_path)
             msg = "Started tracking cpu cgroup {0}".format(cpu_cgroup)
             logger.info(msg)

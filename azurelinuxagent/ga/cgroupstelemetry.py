@@ -17,8 +17,23 @@ import errno
 import threading
 
 from azurelinuxagent.common import logger
+from azurelinuxagent.common.event import WALAEventOperation, add_event
 from azurelinuxagent.ga.cgroup import CpuCgroup
 from azurelinuxagent.common.future import ustr
+
+
+def log_cgroup_info(format_string, *args, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    message = format_string.format(*args)
+    logger.info("[CGI] " + message)
+    if send_event:
+        add_event(op=op, message=message)
+
+
+def log_cgroup_warning(format_string, *args, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    message = format_string.format(*args)
+    logger.info("[CGW] " + message)  # log as INFO for now, in the future it should be logged as WARNING
+    if send_event:
+        add_event(op=op, message=message, is_success=False, log_event=False)
 
 
 class CGroupsTelemetry(object):

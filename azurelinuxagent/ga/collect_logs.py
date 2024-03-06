@@ -47,17 +47,21 @@ def is_log_collection_allowed():
     # There are three conditions that need to be met in order to allow periodic log collection:
     # 1) It should be enabled in the configuration.
     # 2) The system must be using cgroups to manage services. Needed for resource limiting of the log collection.
+    #    This is determined by either:
+    #       a. cgroups_enabled in CGroupConfigurator; OR
+    #       b. cgroups_v2_enabled in CGroupConfigurator and Debug.Cgroupv2CollectLogs in the configuration.
     # 3) The python version must be greater than 2.6 in order to support the ZipFile library used when collecting.
     conf_enabled = conf.get_collect_logs()
     cgroups_enabled = CGroupConfigurator.get_instance().enabled()
+    cgroup_v2_log_collector_enabled = CGroupConfigurator.get_instance().cgroup_v2_enabled() and conf.get_cgroupv2_collect_logs()
     supported_python = PY_VERSION_MINOR >= 6 if PY_VERSION_MAJOR == 2 else PY_VERSION_MAJOR == 3
-    is_allowed = conf_enabled and cgroups_enabled and supported_python
+    is_allowed = conf_enabled and (cgroups_enabled or cgroup_v2_log_collector_enabled) and supported_python
 
     msg = "Checking if log collection is allowed at this time [{0}]. All three conditions must be met: " \
-          "configuration enabled [{1}], cgroups enabled [{2}], python supported: [{3}]".format(is_allowed,
-                                                                                               conf_enabled,
-                                                                                               cgroups_enabled,
-                                                                                               supported_python)
+          "1. configuration enabled [{1}], " \
+          "2. cgroups v1 enabled [{2}] OR cgroups v2 collect logs configuration enabled [{3}], " \
+          "3. python supported: [{4}]".format(is_allowed, conf_enabled, cgroups_enabled,
+                                              cgroup_v2_log_collector_enabled, supported_python)
     logger.info(msg)
     add_event(
         name=AGENT_NAME,
