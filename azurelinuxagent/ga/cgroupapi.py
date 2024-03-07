@@ -237,7 +237,7 @@ class SystemdCgroupsApi(CGroupsApi):
         return EXTENSION_SLICE_PREFIX + "-" + extension_name.replace('-', '_') + ".slice"
 
     @staticmethod
-    def get_process_cgroup_relative_paths(process_id):  # pylint: disable=W0611
+    def get_process_cgroup_relative_paths(process_id):  # pylint: disable=W0613
         """
         Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process
         (relative to the mount point of the corresponding controller).
@@ -254,7 +254,7 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
     """
 
     def __init__(self):
-        super(SystemdCgroupsApi, self).__init__()
+        super().__init__()
 
     def get_cgroup_mount_points(self):
         # the output of mount is similar to
@@ -392,7 +392,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
     Cgroups v2 interface via systemd
     """
     def __init__(self):
-        super(SystemdCgroupsApi, self).__init__()
+        super().__init__()
 
     def get_cgroup_mount_points(self):
         # The output of mount is similar to
