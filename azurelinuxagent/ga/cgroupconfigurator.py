@@ -425,7 +425,7 @@ class CGroupConfigurator(object):
                     memory_accounting = systemd.get_unit_property(agent_unit_name, "MemoryAccounting")
                     log_cgroup_info('MemoryAccounting: {0}', memory_accounting)
                 else:
-                    log_cgroup_info(
+                    log_cgroup_warning(
                         "The Agent is not in the expected memory cgroup; will not enable monitoring. CGroup:[{0}] Expected:[{1}]",
                         memory_cgroup_relative_path,
                         expected_relative_path)

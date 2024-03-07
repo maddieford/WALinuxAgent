@@ -213,7 +213,7 @@ class Agent(object):
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
             if cgroups_api is None:
                 log_cgroup_warning("Unable to determine what version of cgroups to use for log collector resource "
-                                   "enforcement and monitoring.")
+                                   "monitoring and enforcement.")
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
             cpu_cgroup_path, memory_cgroup_path = cgroups_api.get_process_cgroup_paths("self")
@@ -235,8 +235,8 @@ class Agent(object):
             # tracking different controllers across different cgroup versions.
             cpu_mount_point, memory_mount_point = cgroups_api.get_cgroup_mount_points()
             if cpu_mount_point is None or memory_mount_point is None:
-                log_cgroup_warning("At least one required controller for resource monitoring and enforcement is not "
-                                   "mounted in the selected cgroups version.")
+                log_cgroup_warning("At least one required controller for log collector resource monitoring and "
+                                   "enforcement is not mounted in the selected cgroups version.")
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
         def initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path):

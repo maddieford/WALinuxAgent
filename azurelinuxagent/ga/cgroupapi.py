@@ -353,7 +353,7 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
             cpu = None
             memory = None
             for line in shellutil.run_command(['findmnt', '-t', 'cgroup', '--noheadings']).splitlines():
-                match = re.search(r'(?P<path>/\S+(memory|.*cpuacct.*))\s', line)
+                match = re.search(r'(?P<path>/\S+(memory|cpuacct))\s', line)
                 if match is not None:
                     path = match.group('path')
                     if 'cpuacct' in path:
