@@ -221,11 +221,11 @@ class Agent(object):
             memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
 
             if not cpu_slice_matches or not memory_slice_matches:
-                logger.info("The Log Collector process is not in the proper cgroups:")
+                log_cgroup_warning("The Log Collector process is not in the proper cgroups:", send_event=False)
                 if not cpu_slice_matches:
-                    logger.info("\tunexpected cpu slice")
+                    log_cgroup_warning("\tunexpected cpu slice", send_event=False)
                 if not memory_slice_matches:
-                    logger.info("\tunexpected memory slice")
+                    log_cgroup_warning("\tunexpected memory slice", send_event=False)
 
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
