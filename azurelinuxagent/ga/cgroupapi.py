@@ -252,10 +252,6 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
     """
     Cgroups v1 interface via systemd
     """
-
-    def __init__(self):
-        super().__init__()
-
     def get_cgroup_mount_points(self):
         # the output of mount is similar to
         #     $ findmnt -t cgroup --noheadings
@@ -391,9 +387,6 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
     """
     Cgroups v2 interface via systemd
     """
-    def __init__(self):
-        super().__init__()
-
     def get_cgroup_mount_points(self):
         # The output of mount is similar to
         #     $ findmnt -t cgroup2 --noheadings
