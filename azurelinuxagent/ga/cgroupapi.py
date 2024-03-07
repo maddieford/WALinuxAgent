@@ -237,7 +237,7 @@ class SystemdCgroupsApi(CGroupsApi):
         return EXTENSION_SLICE_PREFIX + "-" + extension_name.replace('-', '_') + ".slice"
 
     @staticmethod
-    def get_process_cgroup_relative_paths(process_id):
+    def get_process_cgroup_relative_paths(process_id):  # pylint: disable=W0611
         """
         Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process
         (relative to the mount point of the corresponding controller).

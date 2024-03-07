@@ -30,7 +30,7 @@ import sys
 import threading
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
 from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import SystemdCgroupsApi, get_cgroup_api
+from azurelinuxagent.ga.cgroupapi import get_cgroup_api
 
 import azurelinuxagent.common.conf as conf
 import azurelinuxagent.common.event as event
