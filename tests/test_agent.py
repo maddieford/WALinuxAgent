@@ -22,7 +22,6 @@ import azurelinuxagent.common.logger as logger
 from azurelinuxagent.agent import parse_args, Agent, usage, AgentCommands
 from azurelinuxagent.common import conf
 from azurelinuxagent.ga import logcollector, cgroupconfigurator, cgroupapi
-from azurelinuxagent.ga.cgroupapi import SystemdCgroupsApi, SystemdCgroupsApiv1, SystemdCgroupsApiv2
 from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.collect_logs import CollectLogsHandler
 from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_cgroup_v2_environment, \

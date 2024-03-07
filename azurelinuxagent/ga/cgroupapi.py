@@ -226,6 +226,16 @@ class SystemdCgroupsApi(CGroupsApi):
 
         return cpu_cgroup_path, memory_cgroup_path
 
+    def get_process_cgroup_relative_paths(self, process_id):  # pylint: disable=W0613
+        """
+        Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process
+        (relative to the mount point of the corresponding controller).
+        The 'process_id' can be a numeric PID or the string "self" for the current process.
+        The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
+        not mounted).
+        """
+        return None, None
+
     @staticmethod
     def get_extension_slice_name(extension_name, old_slice=False):
         # The old slice makes it difficult for user to override the limits because they need to place drop-in files on every upgrade if extension slice is different for each version.
@@ -235,17 +245,6 @@ class SystemdCgroupsApi(CGroupsApi):
             extension_name = extension_name.rsplit("-", 1)[0]
         # Since '-' is used as a separator in systemd unit names, we replace it with '_' to prevent side-effects.
         return EXTENSION_SLICE_PREFIX + "-" + extension_name.replace('-', '_') + ".slice"
-
-    @staticmethod
-    def get_process_cgroup_relative_paths(process_id):  # pylint: disable=W0613
-        """
-        Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process
-        (relative to the mount point of the corresponding controller).
-        The 'process_id' can be a numeric PID or the string "self" for the current process.
-        The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
-        not mounted).
-        """
-        return None, None
 
     @staticmethod
     def _is_systemd_failure(scope_name, stderr):
