@@ -363,8 +363,7 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
 
         return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
 
-    @staticmethod
-    def get_process_cgroup_relative_paths(process_id):
+    def get_process_cgroup_relative_paths(self, process_id):
         # The contents of the file are similar to
         #    # cat /proc/1218/cgroup
         #    10:memory:/system.slice/walinuxagent.service
@@ -418,8 +417,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
 
         return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
 
-    @staticmethod
-    def get_process_cgroup_relative_paths(process_id):
+    def get_process_cgroup_relative_paths(self, process_id):
         # The contents of the file are similar to
         #    # cat /proc/1218/cgroup
         #    0::/azure.slice/walinuxagent.service
