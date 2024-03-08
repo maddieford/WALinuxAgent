@@ -305,7 +305,7 @@ class SystemdCgroupsApi(CGroupsApi):
             log_cgroup_info("Failed to start tracking resource usage for the extension: {0}".format(ustr(e)),
                             send_event=False)
         except Exception as e:
-            log_cgroup_info("Failed to start tracking resource usage for the extension: {0}", ustr(e), send_event=False)
+            log_cgroup_info("Failed to start tracking resource usage for the extension: {0}".format(ustr(e)), send_event=False)
 
         # Wait for process completion or timeout
         try:

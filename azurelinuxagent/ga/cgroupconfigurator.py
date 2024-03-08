@@ -173,10 +173,10 @@ class CGroupConfigurator(object):
 
                 # check that systemd is detected correctly
                 if not systemd.is_systemd():
-                    log_cgroup_warning("systemd was not detected on {0}", get_distro())
+                    log_cgroup_warning("systemd was not detected on {0}".format(get_distro()))
                     return
 
-                log_cgroup_info("systemd version: {0}", systemd.get_version())
+                log_cgroup_info("systemd version: {0}".format(systemd.get_version()))
 
                 if not self.__check_no_legacy_cgroups():
                     return
@@ -184,7 +184,7 @@ class CGroupConfigurator(object):
                 agent_unit_name = systemd.get_agent_unit_name()
                 agent_slice = systemd.get_unit_property(agent_unit_name, "Slice")
                 if agent_slice not in (AZURE_SLICE, "system.slice"):
-                    log_cgroup_warning("The agent is within an unexpected slice: {0}", agent_slice)
+                    log_cgroup_warning("The agent is within an unexpected slice: {0}".format(agent_slice))
                     return
 
                 self.__setup_azure_slice()
@@ -202,19 +202,19 @@ class CGroupConfigurator(object):
                     self.enable()
 
                 if self._agent_cpu_cgroup_path is not None:
-                    log_cgroup_info("Agent CPU cgroup: {0}", self._agent_cpu_cgroup_path)
+                    log_cgroup_info("Agent CPU cgroup: {0}".format(self._agent_cpu_cgroup_path))
                     self.__set_cpu_quota(conf.get_agent_cpu_quota())
                     CGroupsTelemetry.track_cgroup(CpuCgroup(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
 
                 if self._agent_memory_cgroup_path is not None:
-                    log_cgroup_info("Agent Memory cgroup: {0}", self._agent_memory_cgroup_path)
+                    log_cgroup_info("Agent Memory cgroup: {0}".format(self._agent_memory_cgroup_path))
                     self._agent_memory_cgroup = MemoryCgroup(AGENT_NAME_TELEMETRY, self._agent_memory_cgroup_path)
                     CGroupsTelemetry.track_cgroup(self._agent_memory_cgroup)
 
-                log_cgroup_info('Agent cgroups enabled: {0}', self._agent_cgroups_enabled)
+                log_cgroup_info('Agent cgroups enabled: {0}'.format(self._agent_cgroups_enabled))
 
             except Exception as exception:
-                log_cgroup_warning("Error initializing cgroups: {0}", ustr(exception))
+                log_cgroup_warning("Error initializing cgroups: {0}".format(ustr(exception)))
             finally:
                 self._initialized = True
 
@@ -321,7 +321,7 @@ class CGroupConfigurator(object):
                     for path, contents in files_to_create:
                         CGroupConfigurator._Impl.__create_unit_file(path, contents)
                 except Exception as exception:
-                    log_cgroup_warning("Failed to create unit files for the azure slice: {0}", ustr(exception))
+                    log_cgroup_warning("Failed to create unit files for the azure slice: {0}".format(ustr(exception)))
                     for unit_file in files_to_create:
                         CGroupConfigurator._Impl.__cleanup_unit_file(unit_file)
                     return
@@ -335,7 +335,7 @@ class CGroupConfigurator(object):
                 log_cgroup_info("Executing systemctl daemon-reload...", send_event=False)
                 shellutil.run_command(["systemctl", "daemon-reload"])
             except Exception as exception:
-                log_cgroup_warning("daemon-reload failed (create azure slice): {0}", ustr(exception))
+                log_cgroup_warning("daemon-reload failed (create azure slice): {0}".format(ustr(exception)))
 
         # W0238: Unused private member `_Impl.__create_unit_file(path, contents)` (unused-private-member)
         @staticmethod
@@ -345,7 +345,7 @@ class CGroupConfigurator(object):
                 fileutil.mkdir(parent, mode=0o755)
             exists = os.path.exists(path)
             fileutil.write_file(path, contents)
-            log_cgroup_info("{0} {1}", "Updated" if exists else "Created", path)
+            log_cgroup_info("{0} {1}".format("Updated" if exists else "Created", path))
 
         # W0238: Unused private member `_Impl.__cleanup_unit_file(path)` (unused-private-member)
         @staticmethod
@@ -353,9 +353,9 @@ class CGroupConfigurator(object):
             if os.path.exists(path):
                 try:
                     os.remove(path)
-                    log_cgroup_info("Removed {0}", path)
+                    log_cgroup_info("Removed {0}".format(path))
                 except Exception as exception:
-                    log_cgroup_warning("Failed to remove {0}: {1}", path, ustr(exception))
+                    log_cgroup_warning("Failed to remove {0}: {1}".format(path, ustr(exception)))
 
         @staticmethod
         def __cleanup_all_files(files_to_cleanup):
@@ -363,9 +363,9 @@ class CGroupConfigurator(object):
                 if os.path.exists(path):
                     try:
                         os.remove(path)
-                        log_cgroup_info("Removed {0}", path)
+                        log_cgroup_info("Removed {0}".format(path))
                     except Exception as exception:
-                        log_cgroup_warning("Failed to remove {0}: {1}", path, ustr(exception))
+                        log_cgroup_warning("Failed to remove {0}: {1}".format(path, ustr(exception)))
 
         @staticmethod
         def __create_all_files(files_to_create):
@@ -374,7 +374,7 @@ class CGroupConfigurator(object):
                 for path, contents in files_to_create:
                     CGroupConfigurator._Impl.__create_unit_file(path, contents)
             except Exception as exception:
-                log_cgroup_warning("Failed to create unit files : {0}", ustr(exception))
+                log_cgroup_warning("Failed to create unit files : {0}".format(ustr(exception)))
                 for unit_file in files_to_create:
                     CGroupConfigurator._Impl.__cleanup_unit_file(unit_file)
                 return
@@ -409,8 +409,8 @@ class CGroupConfigurator(object):
                 log_cgroup_warning("The agent's process is not within a CPU cgroup")
             else:
                 if cpu_cgroup_relative_path == expected_relative_path:
-                    log_cgroup_info('CPUAccounting: {0}', systemd.get_unit_property(agent_unit_name, "CPUAccounting"))
-                    log_cgroup_info('CPUQuota: {0}', systemd.get_unit_property(agent_unit_name, "CPUQuotaPerSecUSec"))
+                    log_cgroup_info('CPUAccounting: {0}'.format(systemd.get_unit_property(agent_unit_name, "CPUAccounting")))
+                    log_cgroup_info('CPUQuota: {0}'.format(systemd.get_unit_property(agent_unit_name, "CPUQuotaPerSecUSec")))
                 else:
                     log_cgroup_warning(
                         "The Agent is not in the expected CPU cgroup; will not enable monitoring. Cgroup:[{0}] Expected:[{1}]",
@@ -423,7 +423,7 @@ class CGroupConfigurator(object):
             else:
                 if memory_cgroup_relative_path == expected_relative_path:
                     memory_accounting = systemd.get_unit_property(agent_unit_name, "MemoryAccounting")
-                    log_cgroup_info('MemoryAccounting: {0}', memory_accounting)
+                    log_cgroup_info('MemoryAccounting: {0}'.format(memory_accounting))
                 else:
                     log_cgroup_warning(
                         "The Agent is not in the expected memory cgroup; will not enable monitoring. CGroup:[{0}] Expected:[{1}]",
@@ -495,7 +495,7 @@ class CGroupConfigurator(object):
             over this setting.
             """
             quota_percentage = "{0}%".format(quota)
-            log_cgroup_info("Ensuring the agent's CPUQuota is {0}", quota_percentage)
+            log_cgroup_info("Ensuring the agent's CPUQuota is {0}".format(quota_percentage))
             if CGroupConfigurator._Impl.__try_set_cpu_quota(quota_percentage):
                 CGroupsTelemetry.set_track_throttled_time(True)
 
@@ -509,8 +509,7 @@ class CGroupConfigurator(object):
             """
             log_cgroup_info("Resetting agent's CPUQuota", send_event=False)
             if CGroupConfigurator._Impl.__try_set_cpu_quota(''):  # setting an empty value resets to the default (infinity)
-                log_cgroup_info('CPUQuota: {0}',
-                                 systemd.get_unit_property(systemd.get_agent_unit_name(), "CPUQuotaPerSecUSec"))
+                log_cgroup_info('CPUQuota: {0}'.format(systemd.get_unit_property(systemd.get_agent_unit_name(), "CPUQuotaPerSecUSec")))
 
         # W0238: Unused private member `_Impl.__try_set_cpu_quota(quota)` (unused-private-member)
         @staticmethod
@@ -855,9 +854,9 @@ class CGroupConfigurator(object):
                 try:
                     cpu_quota = str(cpu_quota) + "%" if cpu_quota is not None else ""  # setting an empty value resets to the default (infinity)
                     if cpu_quota == "":
-                        log_cgroup_info("CPUQuota not set for {0}", extension_name)
+                        log_cgroup_info("CPUQuota not set for {0}".format(extension_name))
                     else:
-                        log_cgroup_info("Ensuring the {0}'s CPUQuota is {1}", extension_name, cpu_quota)
+                        log_cgroup_info("Ensuring the {0}'s CPUQuota is {1}".format(extension_name, cpu_quota))
                     slice_contents = _EXTENSION_SLICE_CONTENTS.format(extension_name=extension_name,
                                                                       cpu_quota=cpu_quota)
                     CGroupConfigurator._Impl.__create_unit_file(extension_slice_path, slice_contents)
@@ -904,7 +903,7 @@ class CGroupConfigurator(object):
                         cpu_quota = service.get('cpuQuotaPercentage', None)
                         if cpu_quota is not None:
                             cpu_quota = str(cpu_quota) + "%"
-                            log_cgroup_info("Ensuring the {0}'s CPUQuota is {1}", service_name, cpu_quota)
+                            log_cgroup_info("Ensuring the {0}'s CPUQuota is {1}".format(service_name, cpu_quota))
                             drop_in_file_cpu_quota = os.path.join(drop_in_path, _DROP_IN_FILE_CPU_QUOTA)
                             cpu_quota_contents = _DROP_IN_FILE_CPU_QUOTA_CONTENTS_FORMAT.format(cpu_quota)
                             files_to_create.append((drop_in_file_cpu_quota, cpu_quota_contents))

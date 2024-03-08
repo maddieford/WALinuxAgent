@@ -22,18 +22,16 @@ from azurelinuxagent.ga.cgroup import CpuCgroup
 from azurelinuxagent.common.future import ustr
 
 
-def log_cgroup_info(format_string, *args, op=WALAEventOperation.CGroupsInfo, send_event=True):
-    message = format_string.format(*args)
-    logger.info("[CGI] " + message)
+def log_cgroup_info(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    logger.info("[CGI] " + formatted_string)
     if send_event:
-        add_event(op=op, message=message)
+        add_event(op=op, message=formatted_string)
 
 
-def log_cgroup_warning(format_string, *args, op=WALAEventOperation.CGroupsInfo, send_event=True):
-    message = format_string.format(*args)
-    logger.info("[CGW] " + message)  # log as INFO for now, in the future it should be logged as WARNING
+def log_cgroup_warning(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    logger.info("[CGW] " + formatted_string)  # log as INFO for now, in the future it should be logged as WARNING
     if send_event:
-        add_event(op=op, message=message, is_success=False, log_event=False)
+        add_event(op=op, message=formatted_string, is_success=False, log_event=False)
 
 
 class CGroupsTelemetry(object):
