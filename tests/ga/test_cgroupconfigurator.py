@@ -451,7 +451,7 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
             configurator.mocks.add_command(MockCommand("systemd-run", return_value=1, stdout='', stderr='Failed to start transient scope unit: syntax error'))
 
             with tempfile.TemporaryFile(dir=self.tmp_dir, mode="w+b") as output_file:
-                with patch("azurelinuxagent.ga.cgroupconfigurator.add_event") as mock_add_event:
+                with patch("azurelinuxagent.ga.cgroupstelemetry.add_event") as mock_add_event:
                     with patch("subprocess.Popen", wraps=subprocess.Popen) as popen_patch:
                         CGroupsTelemetry.reset()
 
@@ -881,7 +881,7 @@ exit 0
                         patchers.append(p)
                         p.start()
 
-                    with patch("azurelinuxagent.ga.cgroupconfigurator.add_event") as add_event:
+                    with patch("azurelinuxagent.ga.cgroupstelemetry.add_event") as add_event:
                         configurator.enable()
 
                         tracked_metrics = [
