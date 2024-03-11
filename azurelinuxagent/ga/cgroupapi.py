@@ -48,8 +48,7 @@ def get_cgroup_api():
     v1 = SystemdCgroupsApiv1()
     v2 = SystemdCgroupsApiv2()
 
-    log_cgroup_info("Controllers mounted in v1: {0}".format(v1.get_mounted_controllers()))
-    log_cgroup_info("Controllers mounted in v2: {0}".format(v2.get_mounted_controllers()))
+    log_cgroup_info("Controllers mounted in v1: {0}. Controllers mounted in v2: {1}".format(v1.get_mounted_controllers(), v2.get_mounted_controllers()))
 
     # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
     # v1, use v1.
@@ -175,7 +174,8 @@ class SystemdCgroupsApi(CGroupsApi):
 
     def get_mounted_controllers(self):
         """
-        Returns a list of the mounted controllers
+        Returns a list of the mounted controllers. Currently, the only controllers the agent checks for is cpu and
+        memory.
         """
         self.get_cgroup_mount_points()  # Updates self._cgroup_mountpoints if empty
         return [controller for controller, mount_point in self._cgroup_mountpoints.items() if mount_point is not None]
@@ -252,6 +252,54 @@ class SystemdCgroupsApi(CGroupsApi):
         stderr = ustr(stderr.read(TELEMETRY_MESSAGE_MAX_LEN), encoding='utf-8', errors='backslashreplace')
         unit_not_found = "Unit {0} not found.".format(scope_name)
         return unit_not_found in stderr or scope_name not in stderr
+
+
+class SystemdCgroupsApiv1(SystemdCgroupsApi):
+    """
+    Cgroups v1 interface via systemd
+    """
+    def get_cgroup_mount_points(self):
+        # the output of mount is similar to
+        #     $ findmnt -t cgroup --noheadings
+        #     /sys/fs/cgroup/systemd          cgroup cgroup rw,nosuid,nodev,noexec,relatime,xattr,name=systemd
+        #     /sys/fs/cgroup/memory           cgroup cgroup rw,nosuid,nodev,noexec,relatime,memory
+        #     /sys/fs/cgroup/cpu,cpuacct      cgroup cgroup rw,nosuid,nodev,noexec,relatime,cpu,cpuacct
+        #     etc
+        #
+        if not self._cgroup_mountpoints:
+            cpu = None
+            memory = None
+            for line in shellutil.run_command(['findmnt', '-t', 'cgroup', '--noheadings']).splitlines():
+                match = re.search(r'(?P<path>/\S+(memory|cpuacct))\s', line)
+                if match is not None:
+                    path = match.group('path')
+                    if 'cpuacct' in path:
+                        cpu = path
+                    else:
+                        memory = path
+            self._cgroup_mountpoints = {'cpu': cpu, 'memory': memory}
+
+        return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
+
+    def get_process_cgroup_relative_paths(self, process_id):
+        # The contents of the file are similar to
+        #    # cat /proc/1218/cgroup
+        #    10:memory:/system.slice/walinuxagent.service
+        #    3:cpu,cpuacct:/system.slice/walinuxagent.service
+        #    etc
+        cpu_path = None
+        memory_path = None
+        for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
+            match = re.match(r'\d+:(?P<controller>(memory|.*cpuacct.*)):(?P<path>.+)', line)
+            if match is not None:
+                controller = match.group('controller')
+                path = match.group('path').lstrip('/') if match.group('path') != '/' else None
+                if controller == 'memory':
+                    memory_path = path
+                else:
+                    cpu_path = path
+
+        return cpu_path, memory_path
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
@@ -336,54 +384,6 @@ class SystemdCgroupsApi(CGroupsApi):
                 self._systemd_run_commands.remove(process.pid)
 
 
-class SystemdCgroupsApiv1(SystemdCgroupsApi):
-    """
-    Cgroups v1 interface via systemd
-    """
-    def get_cgroup_mount_points(self):
-        # the output of mount is similar to
-        #     $ findmnt -t cgroup --noheadings
-        #     /sys/fs/cgroup/systemd          cgroup cgroup rw,nosuid,nodev,noexec,relatime,xattr,name=systemd
-        #     /sys/fs/cgroup/memory           cgroup cgroup rw,nosuid,nodev,noexec,relatime,memory
-        #     /sys/fs/cgroup/cpu,cpuacct      cgroup cgroup rw,nosuid,nodev,noexec,relatime,cpu,cpuacct
-        #     etc
-        #
-        if not self._cgroup_mountpoints:
-            cpu = None
-            memory = None
-            for line in shellutil.run_command(['findmnt', '-t', 'cgroup', '--noheadings']).splitlines():
-                match = re.search(r'(?P<path>/\S+(memory|cpuacct))\s', line)
-                if match is not None:
-                    path = match.group('path')
-                    if 'cpuacct' in path:
-                        cpu = path
-                    else:
-                        memory = path
-            self._cgroup_mountpoints = {'cpu': cpu, 'memory': memory}
-
-        return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
-
-    def get_process_cgroup_relative_paths(self, process_id):
-        # The contents of the file are similar to
-        #    # cat /proc/1218/cgroup
-        #    10:memory:/system.slice/walinuxagent.service
-        #    3:cpu,cpuacct:/system.slice/walinuxagent.service
-        #    etc
-        cpu_path = None
-        memory_path = None
-        for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
-            match = re.match(r'\d+:(?P<controller>(memory|.*cpuacct.*)):(?P<path>.+)', line)
-            if match is not None:
-                controller = match.group('controller')
-                path = match.group('path').lstrip('/') if match.group('path') != '/' else None
-                if controller == 'memory':
-                    memory_path = path
-                else:
-                    cpu_path = path
-
-        return cpu_path, memory_path
-
-
 class SystemdCgroupsApiv2(SystemdCgroupsApi):
     """
     Cgroups v2 interface via systemd
@@ -397,6 +397,8 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         # /sys/fs/cgroup, then /sys/fs/cgroup/cgroup.subtree_control will list the mounted controllers. For example,
         #     $ cat /sys/fs/cgroup/cgroup.subtree_control
         #     cpuset cpu io memory hugetlb pids rdma misc
+        # This check is necessary because all non-root "cgroup.subtree_control" files can only contain controllers
+        # which are enabled in the parent's "cgroup.subtree_control" file.
 
         if not self._cgroup_mountpoints:
             cpu = None
@@ -431,4 +433,10 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
                 cpu_path = path
 
         return cpu_path, memory_path
+
+    def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
+                                error_code=ExtensionErrorCodes.PluginUnknownFailure):
+        error_msg = "The agent does not currently support running extensions in cgroups v2"
+        log_cgroup_warning(error_msg)
+        raise CGroupsException(msg=error_msg)
 
