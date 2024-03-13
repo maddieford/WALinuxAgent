@@ -384,7 +384,7 @@ class TestAgent(AgentTestCase):
                 raise RuntimeError(args[0] if args else "Exiting")
 
             with mock_cgroup_v1_and_v2_environment(self.tmp_dir):
-                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApi.get_process_cgroup_paths",
+                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv1.get_process_cgroup_paths",
                            side_effect=mock_cgroup_paths):
                     agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
 

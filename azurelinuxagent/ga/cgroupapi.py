@@ -212,7 +212,7 @@ class SystemdCgroupsApi(CGroupsApi):
         Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given unit.
         The values returned can be None if the controller is not mounted or enabled.
         """
-        pass
+        pass    # pylint: disable=W0107
 
     def get_process_cgroup_paths(self, process_id):
         """
@@ -221,7 +221,7 @@ class SystemdCgroupsApi(CGroupsApi):
         The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
         not mounted or enabled).
         """
-        pass
+        pass    # pylint: disable=W0107
 
     def get_process_cgroup_relative_paths(self, process_id):  # pylint: disable=W0613
         """
@@ -231,14 +231,14 @@ class SystemdCgroupsApi(CGroupsApi):
         The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
         not mounted).
         """
-        pass
+        pass    # pylint: disable=W0107
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
         """
         Cgroup version specific. Starts extension command.
         """
-        pass
+        pass    # pylint: disable=W0107
 
 
 class SystemdCgroupsApiv1(SystemdCgroupsApi):
@@ -456,7 +456,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         cpu_cgroup_path = None
         if cpu_mount_point is not None:
             cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:])
-            parent_path, cgroup = os.path.split(cgroup_path)
+            parent_path = os.path.split(cgroup_path)[0]
             if self.is_controller_enabled('cpu', parent_path):
                 cpu_cgroup_path = cgroup_path
 
@@ -479,7 +479,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         cpu_cgroup_path = None
         if cpu_mount_point is not None and cpu_cgroup_relative_path is not None:
             cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path)
-            parent_path, cgroup = os.path.split(cgroup_path)
+            parent_path = os.path.split(cgroup_path)[0]
             if self.is_controller_enabled('cpu', parent_path):
                 cpu_cgroup_path = cgroup_path
 
