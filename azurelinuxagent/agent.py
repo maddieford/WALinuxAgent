@@ -217,8 +217,12 @@ class Agent(object):
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
             cpu_cgroup_path, memory_cgroup_path = cgroups_api.get_process_cgroup_paths("self")
-            cpu_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in cpu_cgroup_path)
-            memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
+            cpu_slice_matches = False
+            memory_slice_matches = False
+            if cpu_cgroup_path is not None:
+                cpu_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in cpu_cgroup_path)
+            if memory_cgroup_path is not None:
+                memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
 
             if not cpu_slice_matches or not memory_slice_matches:
                 log_cgroup_warning("The Log Collector process is not in the proper cgroups:", send_event=False)
@@ -227,16 +231,6 @@ class Agent(object):
                 if not memory_slice_matches:
                     log_cgroup_warning("\tunexpected memory slice", send_event=False)
 
-                sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
-
-            # The previous check ensures that the log collector is in the correct cgroup, but it does not ensure that
-            # both the cpu and memory controllers are mounted in the same cgroup version. Both controllers must be
-            # mounted in the same cgroup version to run the log collector, because the agent doesn't currently support
-            # tracking different controllers across different cgroup versions.
-            cpu_mount_point, memory_mount_point = cgroups_api.get_cgroup_mount_points()
-            if cpu_mount_point is None or memory_mount_point is None:
-                log_cgroup_warning("At least one required controller for log collector resource monitoring and "
-                                   "enforcement is not mounted in the selected cgroups version.")
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
         def initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path):

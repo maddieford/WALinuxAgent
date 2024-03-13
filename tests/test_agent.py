@@ -373,11 +373,11 @@ class TestAgent(AgentTestCase):
             CollectLogsHandler.enable_monitor_cgroups_check()
             mock_log_collector.run = Mock()
 
-            # Mock cgroup paths so process is in the log collector slice
+            # Mock cgroup paths so process is in the log collector slice and cpu is not mounted
             def mock_cgroup_paths(*args, **kwargs):
                 if args and args[0] == "self":
                     relative_path = "{0}/{1}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE, logcollector.CGROUPS_UNIT)
-                    return (relative_path, relative_path)
+                    return (None, relative_path)
                 return cgroupapi.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
 
             def raise_on_sys_exit(*args):
