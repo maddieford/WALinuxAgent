@@ -123,7 +123,9 @@ _MOCKED_FILES_V1 = [
 _MOCKED_FILES_V2 = [
     ("/proc/self/cgroup", os.path.join(data_dir, 'cgroups', 'v2', 'proc_self_cgroup')),
     (r"/proc/[0-9]+/cgroup", os.path.join(data_dir, 'cgroups', 'v2', 'proc_pid_cgroup')),
-    ("/sys/fs/cgroup/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control'))
+    ("/sys/fs/cgroup/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control')),
+    ("/sys/fs/cgroup/azure.slice/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control')),
+    ("/sys/fs/cgroup/system.slice/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control'))
 ]
 
 # Mocked files when memory controller is in v2, but all other controllers are in v1

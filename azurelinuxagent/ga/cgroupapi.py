@@ -160,22 +160,15 @@ class SystemdCgroupsApi(CGroupsApi):
 
     def is_cpu_or_memory_mounted(self):
         """
-        Returns True if either cpu or memory controllers are mounted.
+        Returns True if either cpu or memory controllers are mounted and enabled at the root cgroup.
         """
         cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
         return cpu_mount_point is not None or memory_mount_point is not None
 
-    def get_cgroup_mount_points(self):
-        """
-        Cgroup version specific. Returns a tuple with the mount points for the cpu and memory controllers; the values
-        can be None if the corresponding controller is not mounted. Updates self._cgroup_mountpoints if empty.
-        """
-        return None, None
-
     def get_mounted_controllers(self):
         """
-        Returns a list of the mounted controllers. Currently, the only controllers the agent checks for is cpu and
-        memory.
+        Returns a list of the controllers mounted and enabled at the root cgroup. Currently, the only controllers the
+        agent checks for is cpu and memory.
         """
         self.get_cgroup_mount_points()  # Updates self._cgroup_mountpoints if empty
         return [controller for controller, mount_point in self._cgroup_mountpoints.items() if mount_point is not None]
@@ -188,53 +181,6 @@ class SystemdCgroupsApi(CGroupsApi):
         instance (under systemd, moving PIDs across the cgroup file system can produce unpredictable results)
         """
         return CGroupsApi._foreach_legacy_cgroup(lambda *_: None)
-
-    def get_unit_cgroup_paths(self, unit_name):
-        """
-        Returns a tuple with the path of the cpu and memory cgroups for the given unit.
-        The values returned can be None if the controller is not mounted.
-        Ex: ControlGroup=/azure.slice/walinuxagent.service
-        controlgroup_path[1:] = azure.slice/walinuxagent.service
-        """
-        controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
-
-        cpu_cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:]) \
-            if cpu_mount_point is not None else None
-
-        memory_cgroup_path = os.path.join(memory_mount_point, controlgroup_path[1:]) \
-            if memory_mount_point is not None else None
-
-        return cpu_cgroup_path, memory_cgroup_path
-
-    def get_process_cgroup_paths(self, process_id):
-        """
-        Returns a tuple with the path of the cpu and memory cgroups for the given process. The 'process_id' can be a
-        numeric PID or the string "self" for the current process.
-        The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
-        not mounted).
-        """
-        cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
-
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
-
-        cpu_cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path) \
-            if cpu_mount_point is not None and cpu_cgroup_relative_path is not None else None
-
-        memory_cgroup_path = os.path.join(memory_mount_point, memory_cgroup_relative_path) \
-            if memory_mount_point is not None and memory_cgroup_relative_path is not None else None
-
-        return cpu_cgroup_path, memory_cgroup_path
-
-    def get_process_cgroup_relative_paths(self, process_id):  # pylint: disable=W0613
-        """
-        Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process
-        (relative to the mount point of the corresponding controller).
-        The 'process_id' can be a numeric PID or the string "self" for the current process.
-        The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
-        not mounted).
-        """
-        return None, None
 
     @staticmethod
     def get_extension_slice_name(extension_name, old_slice=False):
@@ -252,6 +198,47 @@ class SystemdCgroupsApi(CGroupsApi):
         stderr = ustr(stderr.read(TELEMETRY_MESSAGE_MAX_LEN), encoding='utf-8', errors='backslashreplace')
         unit_not_found = "Unit {0} not found.".format(scope_name)
         return unit_not_found in stderr or scope_name not in stderr
+
+    def get_cgroup_mount_points(self):
+        """
+        Cgroup version specific. Returns a tuple with the mount points for the cpu and memory controllers; the values
+        can be None if the corresponding controller is not mounted or enabled at the root cgroup. Updates
+        self._cgroup_mountpoints if empty.
+        """
+        return None, None
+
+    def get_unit_cgroup_paths(self, unit_name):
+        """
+        Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given unit.
+        The values returned can be None if the controller is not mounted or enabled.
+        """
+        pass
+
+    def get_process_cgroup_paths(self, process_id):
+        """
+        Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process.
+        The 'process_id' can be a numeric PID or the string "self" for the current process.
+        The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
+        not mounted or enabled).
+        """
+        pass
+
+    def get_process_cgroup_relative_paths(self, process_id):  # pylint: disable=W0613
+        """
+        Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given process
+        (relative to the mount point of the corresponding controller).
+        The 'process_id' can be a numeric PID or the string "self" for the current process.
+        The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
+        not mounted).
+        """
+        pass
+
+    def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
+                                error_code=ExtensionErrorCodes.PluginUnknownFailure):
+        """
+        Cgroup version specific. Starts extension command.
+        """
+        pass
 
 
 class SystemdCgroupsApiv1(SystemdCgroupsApi):
@@ -280,6 +267,33 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
             self._cgroup_mountpoints = {'cpu': cpu, 'memory': memory}
 
         return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
+
+    def get_unit_cgroup_paths(self, unit_name):
+        # Ex: ControlGroup=/azure.slice/walinuxagent.service
+        #     controlgroup_path[1:] = azure.slice/walinuxagent.service
+        controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+
+        cpu_cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:]) \
+            if cpu_mount_point is not None else None
+
+        memory_cgroup_path = os.path.join(memory_mount_point, controlgroup_path[1:]) \
+            if memory_mount_point is not None else None
+
+        return cpu_cgroup_path, memory_cgroup_path
+
+    def get_process_cgroup_paths(self, process_id):
+        cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
+
+        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+
+        cpu_cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path) \
+            if cpu_mount_point is not None and cpu_cgroup_relative_path is not None else None
+
+        memory_cgroup_path = os.path.join(memory_mount_point, memory_cgroup_relative_path) \
+            if memory_mount_point is not None and memory_cgroup_relative_path is not None else None
+
+        return cpu_cgroup_path, memory_cgroup_path
 
     def get_process_cgroup_relative_paths(self, process_id):
         # The contents of the file are similar to
@@ -388,17 +402,32 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
     """
     Cgroups v2 interface via systemd
     """
+
+    def is_controller_enabled(self, controller, parent_cgroup_path):
+        """
+        Returns True if the parent cgroup at the provided parent_cgroup_path controls resource distribution of the
+        provided controller to its children. Returns False otherwise, or if the parent_cgroup_path does not exist.
+
+        Enabled controllers are listed at cgroup.subtree_control
+        $ cat /sys/fs/cgroup/cgroup.subtree_control
+        #     cpuset cpu io memory hugetlb pids rdma misc
+        """
+        if parent_cgroup_path is not None:
+            enabled_controllers_file = os.path.join(parent_cgroup_path, 'cgroup.subtree_control')
+            if os.path.exists(enabled_controllers_file):
+                enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")
+                if controller in enabled_controllers:
+                    return True
+        return False
+
     def get_cgroup_mount_points(self):
         # The output of mount is similar to
         #     $ findmnt -t cgroup2 --noheadings
         #     /sys/fs/cgroup cgroup2 cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
         #
-        # The enabled controllers are listed at {mount_point}/cgroup.subtree_control. If the mount point is
-        # /sys/fs/cgroup, then /sys/fs/cgroup/cgroup.subtree_control will list the mounted controllers. For example,
-        #     $ cat /sys/fs/cgroup/cgroup.subtree_control
-        #     cpuset cpu io memory hugetlb pids rdma misc
-        # This check is necessary because all non-root "cgroup.subtree_control" files can only contain controllers
-        # which are enabled in the parent's "cgroup.subtree_control" file.
+        # Since v2 is a unified hierarchy, this method checks if each controller is enabled at the root cgroup. This
+        # check is necessary because all non-root "cgroup.subtree_control" files can only contain controllers which are
+        # enabled in the parent's "cgroup.subtree_control" file.
 
         if not self._cgroup_mountpoints:
             cpu = None
@@ -407,17 +436,61 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
                 match = re.search(r'(?P<path>/\S+)\s+cgroup2', line)
                 if match is not None:
                     mount_point = match.group('path')
-                    enabled_controllers = []
-                    enabled_controllers_file = os.path.join(mount_point, 'cgroup.subtree_control')
-                    if os.path.exists(enabled_controllers_file):
-                        enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")
-                    if 'cpu' in enabled_controllers:
+                    if self.is_controller_enabled('cpu', mount_point):
                         cpu = mount_point
-                    if 'memory' in enabled_controllers:
+                    if self.is_controller_enabled('memory', mount_point):
                         memory = mount_point
             self._cgroup_mountpoints = {'cpu': cpu, 'memory': memory}
 
         return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
+
+    def get_unit_cgroup_paths(self, unit_name):
+        # Ex: ControlGroup=/azure.slice/walinuxagent.service
+        #     controlgroup_path[1:] = azure.slice/walinuxagent.service
+        controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+
+        # Since v2 is a unified hierarchy, we need to check if each controller is enabled for the cgroup. If a
+        # controller is not enabled, then its controller interface files won't exist at the cgroup path. Cpu and memory
+        # is controlled in the cgroup if the parent cgroup has the controller enabled in cgroup.subtree_control.
+        cpu_cgroup_path = None
+        if cpu_mount_point is not None:
+            cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:])
+            parent_path, cgroup = os.path.split(cgroup_path)
+            if self.is_controller_enabled('cpu', parent_path):
+                cpu_cgroup_path = cgroup_path
+
+        memory_cgroup_path = None
+        if memory_mount_point is not None:
+            cgroup_path = os.path.join(memory_mount_point, controlgroup_path[1:])
+            parent_path, cgroup = os.path.split(cgroup_path)
+            if self.is_controller_enabled('memory', parent_path):
+                memory_cgroup_path = cgroup_path
+
+        return cpu_cgroup_path, memory_cgroup_path
+
+    def get_process_cgroup_paths(self, process_id):
+        cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
+        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+
+        # Since v2 is a unified hierarchy, we need to check if each controller is enabled for the cgroup. If a
+        # controller is not enabled, then its controller interface files won't exist at the cgroup path. Cpu and memory
+        # is controlled in the cgroup if the parent cgroup has the controller enabled in cgroup.subtree_control.
+        cpu_cgroup_path = None
+        if cpu_mount_point is not None and cpu_cgroup_relative_path is not None:
+            cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path)
+            parent_path, cgroup = os.path.split(cgroup_path)
+            if self.is_controller_enabled('cpu', parent_path):
+                cpu_cgroup_path = cgroup_path
+
+        memory_cgroup_path = None
+        if memory_mount_point is not None and memory_cgroup_relative_path is not None:
+            cgroup_path = os.path.join(memory_mount_point, memory_cgroup_relative_path)
+            parent_path, cgroup = os.path.split(cgroup_path)
+            if self.is_controller_enabled('memory', parent_path):
+                memory_cgroup_path = cgroup_path
+
+        return cpu_cgroup_path, memory_cgroup_path
 
     def get_process_cgroup_relative_paths(self, process_id):
         # The contents of the file are similar to
@@ -435,6 +508,10 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         return cpu_path, memory_path
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr, error_code=ExtensionErrorCodes.PluginUnknownFailure):   # pylint: disable=W0613
+        """
+        Currently, the agent will not enable cgroups v2 or use SystemdCgroupv2Api() to start extension commands. Raising
+         an exception here for CGroupConfigurator to catch in case v2 is improperly enabled.
+        """
         error_msg = "The agent does not currently support running extensions in cgroups v2"
         log_cgroup_warning(error_msg)
         raise CGroupsException(msg=error_msg)
