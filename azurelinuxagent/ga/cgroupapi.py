@@ -463,7 +463,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         memory_cgroup_path = None
         if memory_mount_point is not None:
             cgroup_path = os.path.join(memory_mount_point, controlgroup_path[1:])
-            parent_path, cgroup = os.path.split(cgroup_path)
+            parent_path = os.path.split(cgroup_path)[0]
             if self.is_controller_enabled('memory', parent_path):
                 memory_cgroup_path = cgroup_path
 
@@ -486,7 +486,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         memory_cgroup_path = None
         if memory_mount_point is not None and memory_cgroup_relative_path is not None:
             cgroup_path = os.path.join(memory_mount_point, memory_cgroup_relative_path)
-            parent_path, cgroup = os.path.split(cgroup_path)
+            parent_path = os.path.split(cgroup_path)[0]
             if self.is_controller_enabled('memory', parent_path):
                 memory_cgroup_path = cgroup_path
 
