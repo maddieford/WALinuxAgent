@@ -412,7 +412,7 @@ class SystemdCgroupsApiv2(SystemdCgroupsApi):
         $ cat /sys/fs/cgroup/cgroup.subtree_control
         #     cpuset cpu io memory hugetlb pids rdma misc
         """
-        if parent_cgroup_path is not None:
+        if parent_cgroup_path is not None and controller is not None:
             enabled_controllers_file = os.path.join(parent_cgroup_path, 'cgroup.subtree_control')
             if os.path.exists(enabled_controllers_file):
                 enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")

@@ -301,6 +301,40 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
 
 
 class SystemdCgroupsApiv2TestCase(AgentTestCase):
+    def test_is_controller_enabled_should_return_False_if_parent_cgroup_is_None(self):
+        with mock_cgroup_v2_environment(self.tmp_dir):
+            self.assertFalse(cgroupapi.get_cgroup_api().is_controller_enabled('cpu', None))
+
+    def test_is_controller_enabled_should_return_False_if_controller_is_None(self):
+        with mock_cgroup_v2_environment(self.tmp_dir):
+            self.assertFalse(cgroupapi.get_cgroup_api().is_controller_enabled(None, '/sys/fs/cgroup'))
+
+    def test_is_controller_enabled_should_return_False_if_subtree_control_path_does_not_exist(self):
+        with mock_cgroup_v2_environment(self.tmp_dir):
+            self.assertFalse(cgroupapi.get_cgroup_api().is_controller_enabled('cpu', '/path/that/does/not/exist'))
+
+    def test_is_controller_enabled_should_return_False_if_controller_is_not_in_subtree_control_file(self):
+        # Mock the parent cgroup.subtree_control to be missing memory
+        def mock_read_file(filepath):
+            if "/sys/fs/cgroup/azure.slice" in filepath:
+                return 'io memory pids\n'
+            return read_file(filepath)
+
+        with mock_cgroup_v2_environment(self.tmp_dir):
+            with patch('azurelinuxagent.common.utils.fileutil.read_file', side_effect=mock_read_file):
+                self.assertFalse(cgroupapi.get_cgroup_api().is_controller_enabled('cpu', '/sys/fs/cgroup/azure.slice'))
+
+    def test_is_controller_enabled_should_return_True_if_controller_is_in_subtree_control_file(self):
+        # Mock the parent cgroup.subtree_control to be missing memory
+        def mock_read_file(filepath):
+            if "/sys/fs/cgroup/azure.slice" in filepath:
+                return 'io memory pids\n'
+            return read_file(filepath)
+
+        with mock_cgroup_v2_environment(self.tmp_dir):
+            with patch('azurelinuxagent.common.utils.fileutil.read_file', side_effect=mock_read_file):
+                self.assertTrue(cgroupapi.get_cgroup_api().is_controller_enabled('memory', '/sys/fs/cgroup/azure.slice'))
+
     def test_get_unit_cgroup_paths_should_return_the_cgroup_v2_mount_points(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             cpu, memory = cgroupapi.get_cgroup_api().get_unit_cgroup_paths("extension.service")
