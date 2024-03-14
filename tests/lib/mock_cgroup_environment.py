@@ -125,7 +125,7 @@ _MOCKED_FILES_V2 = [
     (r"/proc/[0-9]+/cgroup", os.path.join(data_dir, 'cgroups', 'v2', 'proc_pid_cgroup')),
     ("/sys/fs/cgroup/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control')),
     ("/sys/fs/cgroup/azure.slice/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control')),
-    ("/sys/fs/cgroup/system.slice/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control'))
+    ("/sys/fs/cgroup/azure.slice/walinuxagent.service/cgroup.subtree_control", os.path.join(data_dir, 'cgroups', 'v2', 'sys_fs_cgroup_cgroup.subtree_control_empty'))
 ]
 
 # Mocked files when memory controller is in v2, but all other controllers are in v1
@@ -138,6 +138,12 @@ _MOCKED_FILES_V1_AND_V2 = [
 _MOCKED_PATHS = [
     r"^(/lib/systemd/system)",
     r"^(/etc/systemd/system)"
+]
+
+_MOCKED_PATHS_V2 = [
+    r"^(/sys/fs/cgroup/azure.slice/walinuxagent.service)",
+    r"^(/sys/fs/cgroup/system.slice/walinuxagent.service)",
+    r"^(/sys/fs/cgroup/system.slice/extension.service)"
 ]
 
 
@@ -190,7 +196,7 @@ def mock_cgroup_v2_environment(tmp_dir):
 
     with patch('azurelinuxagent.ga.cgroupapi.CGroupsApi.cgroups_supported', return_value=True):
         with patch('azurelinuxagent.common.osutil.systemd.is_systemd', return_value=True):
-            with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_V2, paths=_MOCKED_PATHS, files=_MOCKED_FILES_V2, data_files=data_files) as mock:
+            with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_V2, paths=_MOCKED_PATHS + _MOCKED_PATHS_V2, files=_MOCKED_FILES_V2, data_files=data_files) as mock:
                 yield mock
 
 @contextlib.contextmanager
