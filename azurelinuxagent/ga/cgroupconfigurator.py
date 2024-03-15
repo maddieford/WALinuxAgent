@@ -211,11 +211,11 @@ class CGroupConfigurator(object):
                     self._agent_memory_cgroup = MemoryCgroup(AGENT_NAME_TELEMETRY, self._agent_memory_cgroup_path)
                     CGroupsTelemetry.track_cgroup(self._agent_memory_cgroup)
 
-                log_cgroup_info('Agent cgroups enabled: {0}'.format(self._agent_cgroups_enabled))
 
             except Exception as exception:
                 log_cgroup_warning("Error initializing cgroups: {0}".format(ustr(exception)))
             finally:
+                log_cgroup_info('Agent cgroups enabled: {0}'.format(self._agent_cgroups_enabled))
                 self._initialized = True
 
         def __check_no_legacy_cgroups(self):
