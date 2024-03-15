@@ -24,8 +24,7 @@ from azurelinuxagent.common import conf
 from azurelinuxagent.ga import logcollector, cgroupconfigurator, cgroupapi
 from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.collect_logs import CollectLogsHandler
-from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_cgroup_v2_environment, \
-    mock_cgroup_v1_and_v2_environment
+from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_cgroup_v1_and_v2_environment
 from tests.lib.tools import AgentTestCase, data_dir, Mock, patch
 
 EXPECTED_CONFIGURATION = \
@@ -45,7 +44,6 @@ Debug.CgroupDisableOnQuotaCheckFailure = True
 Debug.CgroupLogMetrics = False
 Debug.CgroupMonitorExpiryTime = 2022-03-31
 Debug.CgroupMonitorExtensionName = Microsoft.Azure.Monitor.AzureMonitorLinuxAgent
-Debug.Cgroupv2CollectLogs = False
 Debug.EnableAgentMemoryUsageCheck = False
 Debug.EnableFastTrack = True
 Debug.EnableGAVersioning = True
