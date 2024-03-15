@@ -234,7 +234,6 @@ class Agent(object):
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
         def initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path):
-            # TODO: need to handle tracking logic
             cpu_cgroup = CpuCgroup(AGENT_LOG_COLLECTOR, cpu_cgroup_path)
             msg = "Started tracking cpu cgroup {0}".format(cpu_cgroup)
             logger.info(msg)

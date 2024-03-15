@@ -146,8 +146,7 @@ __SWITCH_OPTIONS__ = {
     "Debug.CgroupDisableOnQuotaCheckFailure": True,
     "Debug.EnableAgentMemoryUsageCheck": False,
     "Debug.EnableFastTrack": True,
-    "Debug.EnableGAVersioning": True,
-    "Debug.Cgroupv2CollectLogs": False
+    "Debug.EnableGAVersioning": True
 }
 
 
@@ -681,11 +680,3 @@ def get_firewall_rules_log_period(conf=__conf__):
     NOTE: This option is experimental and may be removed in later versions of the Agent.
     """
     return conf.get_int("Debug.FirewallRulesLogPeriod", 86400)
-
-
-def get_cgroupv2_collect_logs(conf=__conf__):
-    """
-    If True, the agent will run the log collector on machines which use Cgroup v2.
-    NOTE: This option is experimental and may be removed in later versions of the Agent.
-    """
-    return conf.get_switch("Debug.Cgroupv2CollectLogs", False)
