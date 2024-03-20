@@ -35,7 +35,7 @@ from azurelinuxagent.ga.extensionprocessutil import handle_process_completion, r
 from azurelinuxagent.common.utils.flexible_version import FlexibleVersion
 from azurelinuxagent.common.version import get_distro
 
-CGROUPS_FILE_SYSTEM_ROOT = '/sys/fs/cgroup'
+CGROUP_FILE_SYSTEM_ROOT = '/sys/fs/cgroup'
 EXTENSION_SLICE_PREFIX = "azure-vmextensions"
 
 
@@ -57,7 +57,7 @@ class CGroupUtil(object):
     @staticmethod
     def get_cgroup_api():
         """
-        Determines which version of Cgroups should be used for resource enforcement and monitoring by the Agent are returns
+        Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent are returns
         the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
         """
         v1 = SystemdCgroupApiv1()
@@ -107,7 +107,7 @@ class CGroupUtil(object):
         """
         legacy_cgroups = []
         for controller in ['cpu', 'memory']:
-            cgroup = os.path.join(CGROUPS_FILE_SYSTEM_ROOT, controller, "WALinuxAgent", "WALinuxAgent")
+            cgroup = os.path.join(CGROUP_FILE_SYSTEM_ROOT, controller, "WALinuxAgent", "WALinuxAgent")
             if os.path.exists(cgroup):
                 log_cgroup_info('Found legacy cgroup {0}'.format(cgroup), send_event=False)
                 legacy_cgroups.append((controller, cgroup))
@@ -150,7 +150,7 @@ class SystemdRunError(CGroupsException):
 
 class _SystemdCgroupApi(object):
     """
-    Cgroups interface via systemd. Contains common api implementations between cgroups v1 and v2.
+    Cgroup interface via systemd. Contains common api implementations between cgroup v1 and v2.
     """
     def __init__(self):
         self._cgroup_mountpoints = {}
@@ -236,7 +236,7 @@ class _SystemdCgroupApi(object):
 
 class SystemdCgroupApiv1(_SystemdCgroupApi):
     """
-    Cgroups v1 interface via systemd
+    Cgroup v1 interface via systemd
     """
     def get_cgroup_mount_points(self):
         # the output of mount is similar to
@@ -393,7 +393,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
 
 class SystemdCgroupApiv2(_SystemdCgroupApi):
     """
-    Cgroups v2 interface via systemd
+    Cgroup v2 interface via systemd
     """
 
     def is_controller_enabled(self, controller, cgroup_path):
@@ -519,10 +519,10 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr, error_code=ExtensionErrorCodes.PluginUnknownFailure):   # pylint: disable=W0613
         """
-        Currently, the agent will not enable cgroups v2 or use SystemdCgroupv2Api() to start extension commands. Raising
+        Currently, the agent will not enable cgroup v2 or use SystemdCgroupv2Api() to start extension commands. Raising
          an exception here for CGroupConfigurator to catch in case v2 is improperly enabled.
         """
-        error_msg = "The agent does not currently support running extensions in cgroups v2"
+        error_msg = "The agent does not currently support running extensions in cgroup v2"
         log_cgroup_warning(error_msg)
         raise CGroupsException(msg=error_msg)
 
