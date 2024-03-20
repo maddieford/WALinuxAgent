@@ -24,7 +24,6 @@ import tempfile
 
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.common.utils.fileutil import read_file
-from azurelinuxagent.ga import cgroupapi
 from azurelinuxagent.ga.cgroupapi import SystemdCgroupsApiv1, SystemdCgroupsApiv2, CGroupUtil, _SystemdCgroupsApi
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.osutil import systemd
@@ -33,6 +32,7 @@ from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_c
     mock_cgroup_v1_and_v2_environment
 from tests.lib.tools import AgentTestCase, patch, mock_sleep
 from tests.lib.cgroups_tools import CGroupsTools
+
 
 class _MockedFileSystemTestCase(AgentTestCase):
     def setUp(self):

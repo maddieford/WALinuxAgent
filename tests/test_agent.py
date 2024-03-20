@@ -24,6 +24,7 @@ from azurelinuxagent.common import conf
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator, cgroupapi
 from azurelinuxagent.common.utils import fileutil
+from azurelinuxagent.ga.cgroupapi import CGroupUtil
 from azurelinuxagent.ga.collect_logs import CollectLogsHandler
 from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_cgroup_v1_and_v2_environment
 from tests.lib.tools import AgentTestCase, data_dir, Mock, patch
@@ -251,7 +252,7 @@ class TestAgent(AgentTestCase):
                 if args and args[0] == "self":
                     relative_path = "{0}/{1}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE, logcollector.CGROUPS_UNIT)
                     return (relative_path, relative_path)
-                return cgroupapi.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
+                return CGroupUtil.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
 
             with mock_cgroup_v1_environment(self.tmp_dir):
                 with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv1.get_process_cgroup_paths",
@@ -299,7 +300,7 @@ class TestAgent(AgentTestCase):
             def mock_cgroup_paths(*args, **kwargs):
                 if args and args[0] == "self":
                     return ("NOT_THE_CORRECT_PATH", "NOT_THE_CORRECT_PATH")
-                return cgroupapi.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
+                return CGroupUtil.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
 
             def raise_on_sys_exit(*args):
                 raise RuntimeError(args[0] if args else "Exiting")
@@ -328,7 +329,7 @@ class TestAgent(AgentTestCase):
                 if args and args[0] == "self":
                     relative_path = "{0}/{1}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE, logcollector.CGROUPS_UNIT)
                     return (None, relative_path)
-                return cgroupapi.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
+                return CGroupUtil.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
 
             def raise_on_sys_exit(*args):
                 raise RuntimeError(args[0] if args else "Exiting")
