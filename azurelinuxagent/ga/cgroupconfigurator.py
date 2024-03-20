@@ -167,8 +167,10 @@ class CGroupConfigurator(object):
 
                 # Determine which version of the Cgroup API should be used. If the correct version can't be determined,
                 # do not enable resource monitoring/enforcement.
-                self._cgroups_api = get_cgroup_api()
-                if self._cgroups_api is None:
+                try:
+                    self._cgroups_api = get_cgroup_api()
+                except CGroupsException as e:
+                    log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                     return
 
                 # check that systemd is detected correctly

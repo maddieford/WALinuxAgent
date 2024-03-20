@@ -21,6 +21,7 @@ import azurelinuxagent.common.logger as logger
 
 from azurelinuxagent.agent import parse_args, Agent, usage, AgentCommands
 from azurelinuxagent.common import conf
+from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator, cgroupapi
 from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.collect_logs import CollectLogsHandler
@@ -269,10 +270,14 @@ class TestAgent(AgentTestCase):
             CollectLogsHandler.enable_monitor_cgroups_check()
             mock_log_collector.run = Mock()
 
+            # Mock cgroup api to raise CGroupsException
+            def mock_get_cgroup_api():
+                raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
+
             def raise_on_sys_exit(*args):
                 raise RuntimeError(args[0] if args else "Exiting")
 
-            with patch("azurelinuxagent.agent.get_cgroup_api", return_value=None):
+            with patch("azurelinuxagent.agent.get_cgroup_api", side_effect=mock_get_cgroup_api):
                 agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
 
                 with patch("sys.exit", side_effect=raise_on_sys_exit) as mock_exit:

@@ -64,10 +64,12 @@ class CGroupsApiTestCase(AgentTestCase):
         with mock_cgroup_v1_and_v2_environment(self.tmp_dir):
             self.assertIsInstance(cgroupapi.get_cgroup_api(), SystemdCgroupsApiv1)
 
-    def test_get_cgroup_api_is_none_when_no_controllers_mounted(self):
+    def test_get_cgroup_api_raises_exception_when_no_controllers_mounted(self):
         with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv1.get_cgroup_mount_points", return_value=(None,None)):
             with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv2.get_cgroup_mount_points", return_value=(None,None)):
-                self.assertIsNone(cgroupapi.get_cgroup_api())
+                with self.assertRaises(CGroupsException) as context:
+                    cgroupapi.get_cgroup_api()
+                self.assertTrue("Controllers needed for resource enforcement and monitoring are not mounted." in str(context.exception))
 
     def test_cgroups_should_be_supported_only_on_ubuntu16_centos7dot4_redhat7dot4_and_later_versions(self):
         test_cases = [

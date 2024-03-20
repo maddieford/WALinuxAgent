@@ -43,7 +43,7 @@ EXTENSION_SLICE_PREFIX = "azure-vmextensions"
 def get_cgroup_api():
     """
     Determines which version of Cgroups should be used for resource enforcement and monitoring by the Agent are returns
-    the corresponding Api. If the required controllers are not mounted in v1 or v2, return None.
+    the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
     """
     v1 = SystemdCgroupsApiv1()
     v2 = SystemdCgroupsApiv2()
@@ -53,14 +53,14 @@ def get_cgroup_api():
     # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
     # v1, use v1.
     if v1.is_cpu_or_memory_mounted():
-        log_cgroup_info("Using cgroups v1 for resource enforcement and monitoring")
+        log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
         return v1
     elif v2.is_cpu_or_memory_mounted():
-        log_cgroup_info("Using cgroups v2 for resource enforcement and monitoring")
+        log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
         return v2
     else:
-        log_cgroup_warning("CPU and Memory controllers are not mounted in cgroups v1 or v2")
-        return None
+        log_cgroup_warning("CPU and Memory controllers are not mounted in cgroup v1 or v2")
+        raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
 
 
 class SystemdRunError(CGroupsException):
