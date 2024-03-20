@@ -60,8 +60,8 @@ class CGroupUtil(object):
         Determines which version of Cgroups should be used for resource enforcement and monitoring by the Agent are returns
         the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
         """
-        v1 = SystemdCgroupsApiv1()
-        v2 = SystemdCgroupsApiv2()
+        v1 = SystemdCgroupApiv1()
+        v2 = SystemdCgroupApiv2()
 
         log_cgroup_info("Controllers mounted in v1: {0}. Controllers mounted in v2: {1}".format(v1.get_mounted_controllers(), v2.get_mounted_controllers()))
 
@@ -148,7 +148,7 @@ class SystemdRunError(CGroupsException):
         super(SystemdRunError, self).__init__(msg)
 
 
-class _SystemdCgroupsApi(object):
+class _SystemdCgroupApi(object):
     """
     Cgroups interface via systemd. Contains common api implementations between cgroups v1 and v2.
     """
@@ -234,7 +234,7 @@ class _SystemdCgroupsApi(object):
             return [int(pid) for pid in cgroup_procs.read().split()]
 
 
-class SystemdCgroupsApiv1(_SystemdCgroupsApi):
+class SystemdCgroupApiv1(_SystemdCgroupApi):
     """
     Cgroups v1 interface via systemd
     """
@@ -391,7 +391,7 @@ class SystemdCgroupsApiv1(_SystemdCgroupsApi):
                 self._systemd_run_commands.remove(process.pid)
 
 
-class SystemdCgroupsApiv2(_SystemdCgroupsApi):
+class SystemdCgroupApiv2(_SystemdCgroupApi):
     """
     Cgroups v2 interface via systemd
     """

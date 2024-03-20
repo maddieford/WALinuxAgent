@@ -24,7 +24,7 @@ import threading
 from azurelinuxagent.common import conf
 from azurelinuxagent.common import logger
 from azurelinuxagent.ga.cgroup import CpuCgroup, AGENT_NAME_TELEMETRY, MetricsCounter, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupsApiv2
+from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupApiv2
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry, log_cgroup_info, log_cgroup_warning
 from azurelinuxagent.common.exception import ExtensionErrorCodes, CGroupsException, AgentMemoryExceededException
 from azurelinuxagent.common.future import ustr
@@ -452,7 +452,7 @@ class CGroupConfigurator(object):
             return self._extensions_cgroups_enabled
 
         def cgroup_v2_enabled(self):
-            return isinstance(self._cgroups_api, SystemdCgroupsApiv2)
+            return isinstance(self._cgroups_api, SystemdCgroupApiv2)
 
         def enable(self):
             if not self.supported():

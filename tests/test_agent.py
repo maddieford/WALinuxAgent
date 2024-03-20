@@ -22,7 +22,7 @@ import azurelinuxagent.common.logger as logger
 from azurelinuxagent.agent import parse_args, Agent, usage, AgentCommands
 from azurelinuxagent.common import conf
 from azurelinuxagent.common.exception import CGroupsException
-from azurelinuxagent.ga import logcollector, cgroupconfigurator, cgroupapi
+from azurelinuxagent.ga import logcollector, cgroupconfigurator
 from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.cgroupapi import CGroupUtil
 from azurelinuxagent.ga.collect_logs import CollectLogsHandler
@@ -255,7 +255,7 @@ class TestAgent(AgentTestCase):
                 return CGroupUtil.get_cgroup_api().get_process_cgroup_relative_paths(*args, **kwargs)
 
             with mock_cgroup_v1_environment(self.tmp_dir):
-                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv1.get_process_cgroup_paths",
+                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_process_cgroup_paths",
                            side_effect=mock_cgroup_paths):
                     agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
                     agent.collect_logs(is_full_mode=True)
@@ -306,7 +306,7 @@ class TestAgent(AgentTestCase):
                 raise RuntimeError(args[0] if args else "Exiting")
 
             with mock_cgroup_v1_environment(self.tmp_dir):
-                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv1.get_process_cgroup_paths", side_effect=mock_cgroup_paths):
+                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_process_cgroup_paths", side_effect=mock_cgroup_paths):
                     agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
 
                     with patch("sys.exit", side_effect=raise_on_sys_exit) as mock_exit:
@@ -335,7 +335,7 @@ class TestAgent(AgentTestCase):
                 raise RuntimeError(args[0] if args else "Exiting")
 
             with mock_cgroup_v1_and_v2_environment(self.tmp_dir):
-                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupsApiv1.get_process_cgroup_paths",
+                with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_process_cgroup_paths",
                            side_effect=mock_cgroup_paths):
                     agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
 
