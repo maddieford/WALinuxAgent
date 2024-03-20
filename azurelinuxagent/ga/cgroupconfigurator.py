@@ -139,8 +139,10 @@ class CGroupConfigurator(object):
             try:
                 if self._initialized:
                     return
-                # This check is to reset the quotas if agent goes from cgroup supported to unsupported distros later in time.
-                if not CGroupsApi.cgroups_supported():
+                # check whether cgroup monitoring is supported on the current distro
+                self._cgroups_supported = CGroupsApi.cgroups_supported()
+                if not self._cgroups_supported:
+                    # This check is to reset the quotas if agent goes from cgroup supported to unsupported distros later in time.
                     agent_drop_in_path = systemd.get_agent_drop_in_path()
                     try:
                         if os.path.exists(agent_drop_in_path) and os.path.isdir(agent_drop_in_path):
@@ -159,10 +161,7 @@ class CGroupConfigurator(object):
                     except Exception as err:
                         logger.warn("[CGW] Unable to delete Agent drop-in files while resetting the quotas: {0}".format(err))
 
-                # check whether cgroup monitoring is supported on the current distro
-                self._cgroups_supported = CGroupsApi.cgroups_supported()
-                if not self._cgroups_supported:
-                    log_cgroup_info("Cgroup monitoring is not supported on {0}".format(get_distro()), send_event=False)
+                    log_cgroup_info("Cgroup monitoring is not supported on {0}".format(get_distro()), send_event=True)
                     return
 
                 # Determine which version of the Cgroup API should be used. If the correct version can't be determined,
