@@ -277,7 +277,7 @@ class TestAgent(AgentTestCase):
             def raise_on_sys_exit(*args):
                 raise RuntimeError(args[0] if args else "Exiting")
 
-            with patch("azurelinuxagent.agent.get_cgroup_api", side_effect=mock_get_cgroup_api):
+            with patch("azurelinuxagent.ga.cgroupapi.CGroupUtil.get_cgroup_api", side_effect=mock_get_cgroup_api):
                 agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
 
                 with patch("sys.exit", side_effect=raise_on_sys_exit) as mock_exit:

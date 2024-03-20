@@ -22,7 +22,6 @@ import subprocess
 import threading
 import uuid
 
-from azurelinuxagent.common import logger
 from azurelinuxagent.ga.cgroup import CpuCgroup, MemoryCgroup
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry, log_cgroup_info, log_cgroup_warning
 from azurelinuxagent.common.conf import get_agent_pid_file_path
@@ -40,39 +39,10 @@ CGROUPS_FILE_SYSTEM_ROOT = '/sys/fs/cgroup'
 EXTENSION_SLICE_PREFIX = "azure-vmextensions"
 
 
-def get_cgroup_api():
+class CGroupUtil(object):
     """
-    Determines which version of Cgroups should be used for resource enforcement and monitoring by the Agent are returns
-    the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
+    Cgroup utility methods which are independent of systemd cgroup api.
     """
-    v1 = SystemdCgroupsApiv1()
-    v2 = SystemdCgroupsApiv2()
-
-    log_cgroup_info("Controllers mounted in v1: {0}. Controllers mounted in v2: {1}".format(v1.get_mounted_controllers(), v2.get_mounted_controllers()))
-
-    # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
-    # v1, use v1.
-    if v1.is_cpu_or_memory_mounted():
-        log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
-        return v1
-    elif v2.is_cpu_or_memory_mounted():
-        log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
-        return v2
-    else:
-        log_cgroup_warning("CPU and Memory controllers are not mounted in cgroup v1 or v2")
-        raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
-
-
-class SystemdRunError(CGroupsException):
-    """
-    Raised when systemd-run fails
-    """
-
-    def __init__(self, msg=None):
-        super(SystemdRunError, self).__init__(msg)
-
-
-class CGroupsApi(object):
     @staticmethod
     def cgroups_supported():
         distro_info = get_distro()
@@ -85,18 +55,41 @@ class CGroupsApi(object):
                (distro_name.lower() in ('centos', 'redhat') and 8 <= distro_version.major < 9)
 
     @staticmethod
-    def track_cgroups(extension_cgroups):
-        try:
-            for cgroup in extension_cgroups:
-                CGroupsTelemetry.track_cgroup(cgroup)
-        except Exception as exception:
-            logger.warn("[CGW] Cannot add cgroup '{0}' to tracking list; resource usage will not be tracked. "
-                        "Error: {1}".format(cgroup.path, ustr(exception)))
+    def get_cgroup_api():
+        """
+        Determines which version of Cgroups should be used for resource enforcement and monitoring by the Agent are returns
+        the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
+        """
+        v1 = SystemdCgroupsApiv1()
+        v2 = SystemdCgroupsApiv2()
+
+        log_cgroup_info("Controllers mounted in v1: {0}. Controllers mounted in v2: {1}".format(v1.get_mounted_controllers(), v2.get_mounted_controllers()))
+
+        # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
+        # v1, use v1.
+        if v1.is_cpu_or_memory_mounted():
+            log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
+            return v1
+        elif v2.is_cpu_or_memory_mounted():
+            log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
+            return v2
+        else:
+            log_cgroup_warning("CPU and Memory controllers are not mounted in cgroup v1 or v2")
+            raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
 
     @staticmethod
-    def get_processes_in_cgroup(cgroup_path):
-        with open(os.path.join(cgroup_path, "cgroup.procs"), "r") as cgroup_procs:
-            return [int(pid) for pid in cgroup_procs.read().split()]
+    def get_extension_slice_name(extension_name, old_slice=False):
+        # The old slice makes it difficult for user to override the limits because they need to place drop-in files on every upgrade if extension slice is different for each version.
+        # old slice includes <HandlerName>.<ExtensionName>-<HandlerVersion>
+        # new slice without version <HandlerName>.<ExtensionName>
+        if not old_slice:
+            extension_name = extension_name.rsplit("-", 1)[0]
+        # Since '-' is used as a separator in systemd unit names, we replace it with '_' to prevent side-effects.
+        return EXTENSION_SLICE_PREFIX + "-" + extension_name.replace('-', '_') + ".slice"
+
+    @staticmethod
+    def get_daemon_pid():
+        return int(fileutil.read_file(get_agent_pid_file_path()).strip())
 
     @staticmethod
     def _foreach_legacy_cgroup(operation):
@@ -125,7 +118,7 @@ class CGroupsApi(object):
 
                 if os.path.exists(procs_file):
                     procs_file_contents = fileutil.read_file(procs_file).strip()
-                    daemon_pid = CGroupsApi.get_daemon_pid()
+                    daemon_pid = CGroupUtil.get_daemon_pid()
 
                     if ustr(daemon_pid) in procs_file_contents:
                         operation(controller, daemon_pid)
@@ -136,15 +129,29 @@ class CGroupsApi(object):
         return len(legacy_cgroups)
 
     @staticmethod
-    def get_daemon_pid():
-        return int(fileutil.read_file(get_agent_pid_file_path()).strip())
+    def cleanup_legacy_cgroups():
+        """
+        Previous versions of the daemon (2.2.31-2.2.40) wrote their PID to /sys/fs/cgroup/{cpu,memory}/WALinuxAgent/WALinuxAgent;
+        starting from version 2.2.41 we track the agent service in walinuxagent.service instead of WALinuxAgent/WALinuxAgent. If
+        we find that any of the legacy groups include the PID of the daemon then we need to disable data collection for this
+        instance (under systemd, moving PIDs across the cgroup file system can produce unpredictable results)
+        """
+        return CGroupUtil._foreach_legacy_cgroup(lambda *_: None)
 
 
-class SystemdCgroupsApi(CGroupsApi):
+class SystemdRunError(CGroupsException):
+    """
+    Raised when systemd-run fails
+    """
+
+    def __init__(self, msg=None):
+        super(SystemdRunError, self).__init__(msg)
+
+
+class _SystemdCgroupsApi(object):
     """
     Cgroups interface via systemd. Contains common api implementations between cgroups v1 and v2.
     """
-
     def __init__(self):
         self._cgroup_mountpoints = {}
         self._agent_unit_name = None
@@ -172,32 +179,6 @@ class SystemdCgroupsApi(CGroupsApi):
         """
         self.get_cgroup_mount_points()  # Updates self._cgroup_mountpoints if empty
         return [controller for controller, mount_point in self._cgroup_mountpoints.items() if mount_point is not None]
-
-    def cleanup_legacy_cgroups(self):
-        """
-        Previous versions of the daemon (2.2.31-2.2.40) wrote their PID to /sys/fs/cgroup/{cpu,memory}/WALinuxAgent/WALinuxAgent;
-        starting from version 2.2.41 we track the agent service in walinuxagent.service instead of WALinuxAgent/WALinuxAgent. If
-        we find that any of the legacy groups include the PID of the daemon then we need to disable data collection for this
-        instance (under systemd, moving PIDs across the cgroup file system can produce unpredictable results)
-        """
-        return CGroupsApi._foreach_legacy_cgroup(lambda *_: None)
-
-    @staticmethod
-    def get_extension_slice_name(extension_name, old_slice=False):
-        # The old slice makes it difficult for user to override the limits because they need to place drop-in files on every upgrade if extension slice is different for each version.
-        # old slice includes <HandlerName>.<ExtensionName>-<HandlerVersion>
-        # new slice without version <HandlerName>.<ExtensionName>
-        if not old_slice:
-            extension_name = extension_name.rsplit("-", 1)[0]
-        # Since '-' is used as a separator in systemd unit names, we replace it with '_' to prevent side-effects.
-        return EXTENSION_SLICE_PREFIX + "-" + extension_name.replace('-', '_') + ".slice"
-
-    @staticmethod
-    def _is_systemd_failure(scope_name, stderr):
-        stderr.seek(0)
-        stderr = ustr(stderr.read(TELEMETRY_MESSAGE_MAX_LEN), encoding='utf-8', errors='backslashreplace')
-        unit_not_found = "Unit {0} not found.".format(scope_name)
-        return unit_not_found in stderr or scope_name not in stderr
 
     def get_cgroup_mount_points(self):
         """
@@ -240,8 +221,20 @@ class SystemdCgroupsApi(CGroupsApi):
         """
         pass    # pylint: disable=W0107
 
+    @staticmethod
+    def _is_systemd_failure(scope_name, stderr):
+        stderr.seek(0)
+        stderr = ustr(stderr.read(TELEMETRY_MESSAGE_MAX_LEN), encoding='utf-8', errors='backslashreplace')
+        unit_not_found = "Unit {0} not found.".format(scope_name)
+        return unit_not_found in stderr or scope_name not in stderr
 
-class SystemdCgroupsApiv1(SystemdCgroupsApi):
+    @staticmethod
+    def get_processes_in_cgroup(cgroup_path):
+        with open(os.path.join(cgroup_path, "cgroup.procs"), "r") as cgroup_procs:
+            return [int(pid) for pid in cgroup_procs.read().split()]
+
+
+class SystemdCgroupsApiv1(_SystemdCgroupsApi):
     """
     Cgroups v1 interface via systemd
     """
@@ -318,7 +311,7 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
         scope = "{0}_{1}".format(cmd_name, uuid.uuid4())
-        extension_slice_name = self.get_extension_slice_name(extension_name)
+        extension_slice_name = CGroupUtil.get_extension_slice_name(extension_name)
         with self._systemd_run_commands_lock:
             process = subprocess.Popen(  # pylint: disable=W1509
                 # Some distros like ubuntu20 by default cpu and memory accounting enabled. Thus create nested cgroups under the extension slice
@@ -398,7 +391,7 @@ class SystemdCgroupsApiv1(SystemdCgroupsApi):
                 self._systemd_run_commands.remove(process.pid)
 
 
-class SystemdCgroupsApiv2(SystemdCgroupsApi):
+class SystemdCgroupsApiv2(_SystemdCgroupsApi):
     """
     Cgroups v2 interface via systemd
     """

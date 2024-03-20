@@ -109,8 +109,12 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
         with self._get_cgroup_configurator_v2() as configurator:
             self.assertFalse(configurator.enabled(), "cgroups were enabled")
 
-    def test_initialize_should_not_enable_when_cgroup_api_is_none(self):
-        with patch('azurelinuxagent.ga.cgroupconfigurator.get_cgroup_api', return_value=None):
+    def test_initialize_should_not_enable_when_cgroup_api_cannot_be_determined(self):
+        # Mock cgroup api to raise CGroupsException
+        def mock_get_cgroup_api():
+            raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
+
+        with patch('azurelinuxagent.ga.cgroupapi.CGroupUtil.get_cgroup_api', side_effect=mock_get_cgroup_api):
             with self._get_cgroup_configurator() as configurator:
                 self.assertFalse(configurator.enabled(), "cgroups were enabled")
 
@@ -952,7 +956,7 @@ exit 0
             agent_processes = [os.getppid(), os.getpid()] + agent_command_processes + [start_extension.systemd_run_pid]
             other_processes = [1, get_completed_process()] + extension_processes
 
-            with patch("azurelinuxagent.ga.cgroupconfigurator.CGroupsApi.get_processes_in_cgroup", return_value=agent_processes + other_processes):
+            with patch("azurelinuxagent.ga.cgroupapi._SystemdCgroupsApi.get_processes_in_cgroup", return_value=agent_processes + other_processes):
                 with self.assertRaises(CGroupsException) as context_manager:
                     configurator._check_processes_in_agent_cgroup()
 

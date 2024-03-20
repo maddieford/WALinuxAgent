@@ -176,7 +176,7 @@ def mock_cgroup_v1_environment(tmp_dir):
         (os.path.join(data_dir, 'init', 'azure-vmextensions.slice'), UnitFilePaths.vmextensions)
     ]
 
-    with patch('azurelinuxagent.ga.cgroupapi.CGroupsApi.cgroups_supported', return_value=True):
+    with patch('azurelinuxagent.ga.cgroupapi.CGroupUtil.cgroups_supported', return_value=True):
         with patch('azurelinuxagent.common.osutil.systemd.is_systemd', return_value=True):
             with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_V1, paths=_MOCKED_PATHS, files=_MOCKED_FILES_V1, data_files=data_files) as mock:
                 yield mock
@@ -194,7 +194,7 @@ def mock_cgroup_v2_environment(tmp_dir):
         (os.path.join(data_dir, 'init', 'azure-vmextensions.slice'), UnitFilePaths.vmextensions)
     ]
 
-    with patch('azurelinuxagent.ga.cgroupapi.CGroupsApi.cgroups_supported', return_value=True):
+    with patch('azurelinuxagent.ga.cgroupapi.CGroupUtil.cgroups_supported', return_value=True):
         with patch('azurelinuxagent.common.osutil.systemd.is_systemd', return_value=True):
             with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_V2, paths=_MOCKED_PATHS + _MOCKED_PATHS_V2, files=_MOCKED_FILES_V2, data_files=data_files) as mock:
                 yield mock
@@ -212,7 +212,7 @@ def mock_cgroup_v1_and_v2_environment(tmp_dir):
         (os.path.join(data_dir, 'init', 'azure-vmextensions.slice'), UnitFilePaths.vmextensions)
     ]
 
-    with patch('azurelinuxagent.ga.cgroupapi.CGroupsApi.cgroups_supported', return_value=True):
+    with patch('azurelinuxagent.ga.cgroupapi.CGroupUtil.cgroups_supported', return_value=True):
         with patch('azurelinuxagent.common.osutil.systemd.is_systemd', return_value=True):
             with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_V1_AND_V2, paths=_MOCKED_PATHS, files=_MOCKED_FILES_V1_AND_V2, data_files=data_files) as mock:
                 yield mock

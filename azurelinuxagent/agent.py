@@ -32,7 +32,7 @@ import threading
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
 from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import get_cgroup_api
+from azurelinuxagent.ga.cgroupapi import CGroupUtil
 from azurelinuxagent.ga.cgroupstelemetry import log_cgroup_warning
 
 import azurelinuxagent.common.conf as conf
@@ -213,7 +213,7 @@ class Agent(object):
         memory_cgroup_path = None
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
             try:
-                cgroup_api = get_cgroup_api()
+                cgroup_api = CGroupUtil.get_cgroup_api()
             except CGroupsException as e:
                 log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
