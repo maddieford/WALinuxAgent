@@ -253,7 +253,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
                 match = re.search(r'(?P<path>/\S+(memory|cpuacct))\s', line)
                 if match is not None:
                     path = match.group('path')
-                    if 'cpuacct' in path:
+                    if 'cpu,cpuacct' in path:
                         cpu = path
                     else:
                         memory = path
