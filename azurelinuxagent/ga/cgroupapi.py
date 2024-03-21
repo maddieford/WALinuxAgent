@@ -186,14 +186,14 @@ class _SystemdCgroupApi(object):
         can be None if the corresponding controller is not mounted or enabled at the root cgroup. Updates
         self._cgroup_mountpoints if empty.
         """
-        return None, None
+        raise NotImplementedError()
 
     def get_unit_cgroup_paths(self, unit_name):
         """
         Cgroup version specific. Returns a tuple with the path of the cpu and memory cgroups for the given unit.
         The values returned can be None if the controller is not mounted or enabled.
         """
-        pass    # pylint: disable=W0107
+        raise NotImplementedError()
 
     def get_process_cgroup_paths(self, process_id):
         """
@@ -202,7 +202,7 @@ class _SystemdCgroupApi(object):
         The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
         not mounted or enabled).
         """
-        pass    # pylint: disable=W0107
+        raise NotImplementedError()
 
     def get_process_cgroup_relative_paths(self, process_id):  # pylint: disable=W0613
         """
@@ -212,14 +212,14 @@ class _SystemdCgroupApi(object):
         The values returned can be None if the process is not in a cgroup for that controller (e.g. the controller is
         not mounted).
         """
-        pass    # pylint: disable=W0107
+        raise NotImplementedError()
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
         """
         Cgroup version specific. Starts extension command.
         """
-        pass    # pylint: disable=W0107
+        raise NotImplementedError()
 
     @staticmethod
     def _is_systemd_failure(scope_name, stderr):
