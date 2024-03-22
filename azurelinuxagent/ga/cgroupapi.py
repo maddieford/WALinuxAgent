@@ -518,11 +518,4 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         return cpu_path, memory_path
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr, error_code=ExtensionErrorCodes.PluginUnknownFailure):   # pylint: disable=W0613
-        """
-        Currently, the agent will not enable cgroup v2 or use SystemdCgroupv2Api() to start extension commands. Raising
-         an exception here for CGroupConfigurator to catch in case v2 is improperly enabled.
-        """
-        error_msg = "The agent does not currently support running extensions in cgroup v2"
-        log_cgroup_warning(error_msg)
-        raise CGroupsException(msg=error_msg)
-
+        raise NotImplementedError()

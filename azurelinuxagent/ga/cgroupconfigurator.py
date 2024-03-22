@@ -819,12 +819,6 @@ class CGroupConfigurator(object):
                         extension_name, ustr(exception))
                     self.disable(reason, DisableCgroups.ALL)
                     # fall-through and re-invoke the extension
-                except CGroupsException as exception:
-                    reason = 'Failed to start {0} using cgroups, will try invoking the extension directly. Error: {1}'.format(
-                        extension_name, ustr(exception))
-                    self.disable(reason, DisableCgroups.ALL)
-                    # fall-through and re-invoke the extension
-
 
             # subprocess-popen-preexec-fn<W1509> Disabled: code is not multi-threaded
             process = subprocess.Popen(command, shell=shell, cwd=cwd, env=env, stdout=stdout, stderr=stderr, preexec_fn=os.setsid)  # pylint: disable=W1509

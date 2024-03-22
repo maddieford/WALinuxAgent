@@ -516,52 +516,32 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
                     self.assertIn("A TEST EXCEPTION", str(context_manager.exception))
 
     @patch('time.sleep', side_effect=lambda _: mock_sleep())
-    def test_start_extension_command_should_disable_cgroups_and_invoke_the_command_directly_if_v2_is_used(self, _):
+    def test_start_extension_command_should_not_use_systemd_when_using_cgroup_v2(self, _):
         with self._get_cgroup_configurator_v2() as configurator:
-            configurator.enable()  # NOTE: Cgroups should not currently be enabled if v2 is detected. Adding this test to guarantee extensions are run correctly if cgroups v2 api is incorrectly called.
+            self.assertFalse(configurator.enabled())
 
-            with tempfile.TemporaryFile(dir=self.tmp_dir, mode="w+b") as output_file:
-                with patch("azurelinuxagent.ga.cgroupstelemetry.add_event") as mock_add_event:
-                    with patch("subprocess.Popen", wraps=subprocess.Popen) as popen_patch:
-                        CGroupsTelemetry.reset()
+            with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.start_extension_command") as v2_extension_start_command:
+                with patch("azurelinuxagent.ga.cgroupapi.subprocess.Popen", wraps=subprocess.Popen) as patcher:
+                    configurator.start_extension_command(
+                        extension_name="Microsoft.Compute.TestExtension-1.2.3",
+                        command="date",
+                        cmd_name="test",
+                        timeout=300,
+                        shell=False,
+                        cwd=self.tmp_dir,
+                        env={},
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE)
 
-                        command = "echo TEST_OUTPUT"
-
-                        command_output = configurator.start_extension_command(
-                            extension_name="Microsoft.Compute.TestExtension-1.2.3",
-                            command=command,
-                            cmd_name="test",
-                            timeout=300,
-                            shell=True,
-                            cwd=self.tmp_dir,
-                            env={},
-                            stdout=output_file,
-                            stderr=output_file)
-
-                        self.assertFalse(configurator.enabled(), "Cgroups should have been disabled")
-
-                        disabled_events = [kwargs for _, kwargs in mock_add_event.call_args_list if
-                                           kwargs['op'] == WALAEventOperation.CGroupsDisabled]
-
-                        self.assertTrue(len(disabled_events) == 1,
-                                        "Exactly one CGroupsDisabled telemetry event should have been issued. Found: {0}".format(
-                                            disabled_events))
-                        self.assertIn("Failed to start Microsoft.Compute.TestExtension-1.2.3 using cgroups",
-                                      disabled_events[0]['message'],
-                                      "The cgroups failure was not included in the telemetry message")
-                        self.assertEqual(False, disabled_events[0]['is_success'],
-                                         "The telemetry event should indicate a failure")
-
-                        extension_calls = [args[0] for (args, _) in popen_patch.call_args_list if command in args[0]]
-
-                        self.assertEqual(1, len(extension_calls),
-                                         "The extension should have been invoked exactly twice")
-                        self.assertEqual(command, extension_calls[0],
-                                         "The second call to the extension should not have used systemd")
-
-                        self.assertEqual(len(CGroupsTelemetry._tracked), 0, "No cgroups should have been created")
-
-                        self.assertIn("TEST_OUTPUT\n", command_output, "The test output was not captured")
+                    command_calls = [args[0] for args, _ in patcher.call_args_list if
+                                     len(args) > 0 and "date" in args[0]]
+                    self.assertFalse(v2_extension_start_command.called)
+                    self.assertEqual(len(command_calls), 1,
+                                     "The test command should have been called exactly once [{0}]".format(
+                                         command_calls))
+                    self.assertNotIn("systemd-run", command_calls[0],
+                                     "The command should not have been invoked using systemd")
+                    self.assertEqual(command_calls[0], "date", "The command line should not have been modified")
 
     @patch('time.sleep', side_effect=lambda _: mock_sleep())
     def test_start_extension_command_should_disable_cgroups_and_invoke_the_command_directly_if_systemd_fails(self, _):

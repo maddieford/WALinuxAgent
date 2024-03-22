@@ -510,26 +510,6 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
             self.assertEqual(cpu, "system.slice/walinuxagent.service", "The relative path for the CPU cgroup is incorrect")
             self.assertEqual(memory, "system.slice/walinuxagent.service", "The relative memory for the CPU cgroup is incorrect")
 
-    @patch('time.sleep', side_effect=lambda _: mock_sleep())
-    def test_start_extension_cgroups_v2_command_should_raise_exception(self, _):
-        with mock_cgroup_v2_environment(self.tmp_dir):
-            with tempfile.TemporaryFile(dir=self.tmp_dir, mode="w+b") as output_file:
-                cgroups_exception_raised = False
-                try:
-                    CGroupUtil.get_cgroup_api().start_extension_command(
-                        extension_name="Microsoft.Compute.TestExtension-1.2.3",
-                        command="A_TEST_COMMAND",
-                        cmd_name="test",
-                        shell=True,
-                        timeout=300,
-                        cwd=self.tmp_dir,
-                        env={},
-                        stdout=output_file,
-                        stderr=output_file)
-                except CGroupsException:
-                    cgroups_exception_raised = True
-                self.assertTrue(cgroups_exception_raised)
-
 
 class SystemdCgroupsApiMockedFileSystemTestCase(_MockedFileSystemTestCase):
     def test_cleanup_legacy_cgroups_should_remove_legacy_cgroups(self):
