@@ -24,8 +24,8 @@ import threading
 from azurelinuxagent.common import conf
 from azurelinuxagent.common import logger
 from azurelinuxagent.ga.cgroup import CpuCgroup, AGENT_NAME_TELEMETRY, MetricsCounter, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupApiv2
-from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry, log_cgroup_info, log_cgroup_warning
+from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupApiv2, log_cgroup_info, log_cgroup_warning
+from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.exception import ExtensionErrorCodes, CGroupsException, AgentMemoryExceededException
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.common.osutil import systemd
@@ -156,9 +156,9 @@ class CGroupConfigurator(object):
                                                      agent_drop_in_file_memory_accounting, agent_drop_in_file_cpu_quota])
                             self.__cleanup_all_files(files_to_cleanup)
                             self.__reload_systemd_config()
-                            log_cgroup_info("Agent reset the quotas if distro: {0} goes from supported to unsupported list".format(get_distro()), send_event=False)
+                            log_cgroup_info("Agent reset the quotas if distro: {0} goes from supported to unsupported list".format(get_distro()), send_event=True)
                     except Exception as err:
-                        logger.warn("[CGW] Unable to delete Agent drop-in files while resetting the quotas: {0}".format(err))
+                        logger.warn("Unable to delete Agent drop-in files while resetting the quotas: {0}".format(err))
 
                     log_cgroup_info("Cgroup monitoring is not supported on {0}".format(get_distro()), send_event=True)
                     return

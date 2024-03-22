@@ -32,8 +32,7 @@ import threading
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
 from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import CGroupUtil
-from azurelinuxagent.ga.cgroupstelemetry import log_cgroup_warning
+from azurelinuxagent.ga.cgroupapi import CGroupUtil, log_cgroup_warning
 
 import azurelinuxagent.common.conf as conf
 import azurelinuxagent.common.event as event

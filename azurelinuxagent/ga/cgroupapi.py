@@ -22,8 +22,10 @@ import subprocess
 import threading
 import uuid
 
+from azurelinuxagent.common import logger
+from azurelinuxagent.common.event import WALAEventOperation, add_event
 from azurelinuxagent.ga.cgroup import CpuCgroup, MemoryCgroup
-from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry, log_cgroup_info, log_cgroup_warning
+from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.conf import get_agent_pid_file_path
 from azurelinuxagent.common.exception import CGroupsException, ExtensionErrorCodes, ExtensionError, \
     ExtensionOperationError
@@ -137,6 +139,18 @@ class CGroupUtil(object):
         instance (under systemd, moving PIDs across the cgroup file system can produce unpredictable results)
         """
         return CGroupUtil._foreach_legacy_cgroup(lambda *_: None)
+
+
+def log_cgroup_info(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    logger.info("[CGI] " + formatted_string)
+    if send_event:
+        add_event(op=op, message=formatted_string)
+
+
+def log_cgroup_warning(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    logger.info("[CGW] " + formatted_string)  # log as INFO for now, in the future it should be logged as WARNING
+    if send_event:
+        add_event(op=op, message=formatted_string, is_success=False, log_event=False)
 
 
 class SystemdRunError(CGroupsException):
