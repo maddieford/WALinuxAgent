@@ -163,6 +163,13 @@ class CGroupConfigurator(object):
                     log_cgroup_info("Cgroup monitoring is not supported on {0}".format(get_distro()), send_event=True)
                     return
 
+                # check that systemd is detected correctly
+                if not systemd.is_systemd():
+                    log_cgroup_warning("systemd was not detected on {0}".format(get_distro()))
+                    return
+
+                log_cgroup_info("systemd version: {0}".format(systemd.get_version()))
+
                 # Determine which version of the Cgroup API should be used. If the correct version can't be determined,
                 # do not enable resource monitoring/enforcement.
                 try:
@@ -170,13 +177,6 @@ class CGroupConfigurator(object):
                 except CGroupsException as e:
                     log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                     return
-
-                # check that systemd is detected correctly
-                if not systemd.is_systemd():
-                    log_cgroup_warning("systemd was not detected on {0}".format(get_distro()))
-                    return
-
-                log_cgroup_info("systemd version: {0}".format(systemd.get_version()))
 
                 if not self.__check_no_legacy_cgroups():
                     return
