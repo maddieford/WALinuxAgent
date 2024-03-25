@@ -260,7 +260,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         #     /sys/fs/cgroup/cpu,cpuacct      cgroup cgroup rw,nosuid,nodev,noexec,relatime,cpu,cpuacct
         #     etc
         #
-        if not self._cgroup_mountpoints:
+        if len(self._cgroup_mountpoints) == 0:
             cpu = None
             memory = None
             for line in shellutil.run_command(['findmnt', '-t', 'cgroup', '--noheadings']).splitlines():
@@ -459,7 +459,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         # check is necessary because all non-root "cgroup.subtree_control" files can only contain controllers which are
         # enabled in the parent's "cgroup.subtree_control" file.
 
-        if not self._cgroup_mountpoints:
+        if len(self._cgroup_mountpoints) == 0:
             cpu = None
             memory = None
             for line in shellutil.run_command(['findmnt', '-t', 'cgroup2', '--noheadings']).splitlines():
