@@ -409,44 +409,22 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
     """
     Cgroup v2 interface via systemd
     """
-
-    def is_controller_enabled(self, controller, cgroup_path):
+    def is_controller_enabled_at_root(self, controller, root_cgroup):
         """
-        Returns True if the provided controller is enabled at the provided cgroup.
+        Returns True if the provided controller is enabled at the root cgroup. The cgroup.subtree_control file at the
+        root shows a space separated list of the controllers which are enabled to control resource distribution from
+        the root cgroup to its children. If a controller is listed here, then that controller is available to enable in
+        children cgroups.
 
-        There are two ways to determine if a controller is enabled at the provided cgroup:
-
-        1. For non-leaf cgroups, the cgroup.subtree_control shows space separated list of the controllers which are
-        enabled to control resource distribution from the cgroup to its children. All non-root "cgroup.subtree_control"
-        files can only contain controllers which are enabled in the parent's "cgroup.subtree_control" file.
                 $ cat /sys/fs/cgroup/cgroup.subtree_control
                 cpuset cpu io memory hugetlb pids rdma misc
-
-        2. For leaf cgroups, the cgroup.subtree_control file will be empty and the presence of "<controller>."
-        prefixed interface files at the path indicate the controller is enabled.
-                $ ls /sys/fs/cgroup/azure.slice/walinuxagent.service/
-                cgroup.controllers  cgroup.max.descendants  cgroup.threads  cpu.pressure    cpu.weight.nice      memory.high       memory.oom.group  memory.swap.current  memory.zswap.current  pids.peak
-                cgroup.events       cgroup.pressure         cgroup.type     cpu.stat        io.pressure          memory.low        memory.peak       memory.swap.events   memory.zswap.max
-                cgroup.freeze       cgroup.procs            cpu.idle        cpu.uclamp.max  memory.current       memory.max        memory.pressure   memory.swap.high     pids.current
-                cgroup.kill         cgroup.stat             cpu.max         cpu.uclamp.min  memory.events        memory.min        memory.reclaim    memory.swap.max      pids.events
-                cgroup.max.depth    cgroup.subtree_control  cpu.max.burst   cpu.weight      memory.events.local  memory.numa_stat  memory.stat       memory.swap.peak     pids.max
-
-        If either check is True, the controller is enabled at the cgroup. Check 1 is necessary because no controller
-        interface files exist at the root cgroup, even if the controller is enabled.
         """
-        if cgroup_path is not None and controller is not None:
-            # Check that the controller is enabled in the cgroup.subtree_control file
-            enabled_controllers_file = os.path.join(cgroup_path, 'cgroup.subtree_control')
-            if os.path.exists(enabled_controllers_file):
-                enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")
-                if controller in enabled_controllers:
-                    return True
-
-            # Check that the controller interface files exist in the cgroup
-            if os.path.exists(cgroup_path):
-                for item in os.listdir(cgroup_path):
-                    if item.startswith(controller + '.'):
-                        return True
+        # Check that the controller is enabled in the cgroup.subtree_control file
+        enabled_controllers_file = os.path.join(root_cgroup, 'cgroup.subtree_control')
+        if os.path.exists(enabled_controllers_file):
+            enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")
+            if controller in enabled_controllers:
+                return True
 
         return False
 
@@ -466,10 +444,11 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
                 match = re.search(r'(?P<path>/\S+)\s+cgroup2', line)
                 if match is not None:
                     mount_point = match.group('path')
-                    if self.is_controller_enabled('cpu', mount_point):
-                        cpu = mount_point
-                    if self.is_controller_enabled('memory', mount_point):
-                        memory = mount_point
+                    if mount_point is not None:
+                        if self.is_controller_enabled_at_root('cpu', mount_point):
+                            cpu = mount_point
+                        if self.is_controller_enabled_at_root('memory', mount_point):
+                            memory = mount_point
             self._cgroup_mountpoints = {'cpu': cpu, 'memory': memory}
 
         return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
@@ -480,19 +459,11 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
         cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
 
-        # Since v2 is a unified hierarchy, we need to check if each controller is enabled for the cgroup. If a
-        # controller is not enabled, then its controller interface files won't exist at the cgroup path
-        cpu_cgroup_path = None
-        if cpu_mount_point is not None:
-            cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:])
-            if self.is_controller_enabled('cpu', cgroup_path):
-                cpu_cgroup_path = cgroup_path
+        cpu_cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:]) \
+            if cpu_mount_point is not None else None
 
-        memory_cgroup_path = None
-        if memory_mount_point is not None:
-            cgroup_path = os.path.join(memory_mount_point, controlgroup_path[1:])
-            if self.is_controller_enabled('memory', cgroup_path):
-                memory_cgroup_path = cgroup_path
+        memory_cgroup_path = os.path.join(memory_mount_point, controlgroup_path[1:]) \
+            if memory_mount_point is not None else None
 
         return cpu_cgroup_path, memory_cgroup_path
 
@@ -500,19 +471,11 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
         cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
 
-        # Since v2 is a unified hierarchy, we need to check if each controller is enabled for the cgroup. If a
-        # controller is not enabled, then its controller interface files won't exist at the cgroup path
-        cpu_cgroup_path = None
-        if cpu_mount_point is not None and cpu_cgroup_relative_path is not None:
-            cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path)
-            if self.is_controller_enabled('cpu', cgroup_path):
-                cpu_cgroup_path = cgroup_path
+        cpu_cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path) \
+            if cpu_mount_point is not None and cpu_cgroup_relative_path is not None else None
 
-        memory_cgroup_path = None
-        if memory_mount_point is not None and memory_cgroup_relative_path is not None:
-            cgroup_path = os.path.join(memory_mount_point, memory_cgroup_relative_path)
-            if self.is_controller_enabled('memory', cgroup_path):
-                memory_cgroup_path = cgroup_path
+        memory_cgroup_path = os.path.join(memory_mount_point, memory_cgroup_relative_path) \
+            if memory_mount_point is not None and memory_cgroup_relative_path is not None else None
 
         return cpu_cgroup_path, memory_cgroup_path
 
