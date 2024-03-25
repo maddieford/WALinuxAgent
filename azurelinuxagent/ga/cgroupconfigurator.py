@@ -189,7 +189,7 @@ class CGroupConfigurator(object):
 
                 self.__setup_azure_slice()
 
-                cpu_controller_root, memory_controller_root = self.__get_cgroup_controllers_mount_points()
+                cpu_controller_root, memory_controller_root = self.__get_cgroup_controller_roots()
                 self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroup_paths(agent_slice,
                                                                                                        cpu_controller_root,
                                                                                                        memory_controller_root)
@@ -229,18 +229,18 @@ class CGroupConfigurator(object):
                 return False
             return True
 
-        def __get_cgroup_controllers_mount_points(self):
-            cpu_controller_root, memory_controller_root = self._cgroups_api.get_cgroup_mount_points()
+        def __get_cgroup_controller_roots(self):
+            cpu_controller_root, memory_controller_root = self._cgroups_api.get_controller_root_paths()
 
             if cpu_controller_root is not None:
-                log_cgroup_info("The CPU cgroup controller is mounted at {0}".format(cpu_controller_root), send_event=False)
+                log_cgroup_info("The CPU cgroup controller root path is {0}".format(cpu_controller_root), send_event=False)
             else:
-                log_cgroup_warning("The CPU cgroup controller is not mounted")
+                log_cgroup_warning("The CPU cgroup controller is not mounted or enabled")
 
             if memory_controller_root is not None:
-                log_cgroup_info("The memory cgroup controller is mounted at {0}".format(memory_controller_root), send_event=False)
+                log_cgroup_info("The memory cgroup controller root path is {0}".format(memory_controller_root), send_event=False)
             else:
-                log_cgroup_warning("The memory cgroup controller is not mounted")
+                log_cgroup_warning("The memory cgroup controller is not mounted or enabled")
 
             return cpu_controller_root, memory_controller_root
 
@@ -744,12 +744,12 @@ class CGroupConfigurator(object):
                 cpu_cgroup_path, memory_cgroup_path = self._cgroups_api.get_unit_cgroup_paths(unit_name)
 
                 if cpu_cgroup_path is None:
-                    log_cgroup_info("The CPU controller is not mounted; will not track resource usage", send_event=False)
+                    log_cgroup_info("The CPU controller is not mounted or enabled; will not track resource usage", send_event=False)
                 else:
                     CGroupsTelemetry.track_cgroup(CpuCgroup(unit_name, cpu_cgroup_path))
 
                 if memory_cgroup_path is None:
-                    log_cgroup_info("The Memory controller is not mounted; will not track resource usage", send_event=False)
+                    log_cgroup_info("The Memory controller is not mounted or enabled; will not track resource usage", send_event=False)
                 else:
                     CGroupsTelemetry.track_cgroup(MemoryCgroup(unit_name, memory_cgroup_path))
 
@@ -781,9 +781,9 @@ class CGroupConfigurator(object):
                 cgroup_relative_path = os.path.join(_AZURE_VMEXTENSIONS_SLICE,
                                                     extension_slice_name)
 
-                cpu_cgroup_mountpoint, memory_cgroup_mountpoint = self._cgroups_api.get_cgroup_mount_points()
-                cpu_cgroup_path = os.path.join(cpu_cgroup_mountpoint, cgroup_relative_path)
-                memory_cgroup_path = os.path.join(memory_cgroup_mountpoint, cgroup_relative_path)
+                cpu_root_path, memory_root_path = self._cgroups_api.get_controller_root_paths()
+                cpu_cgroup_path = os.path.join(cpu_root_path, cgroup_relative_path)
+                memory_cgroup_path = os.path.join(memory_root_path, cgroup_relative_path)
 
                 if cpu_cgroup_path is not None:
                     CGroupsTelemetry.stop_tracking(CpuCgroup(extension_name, cpu_cgroup_path))

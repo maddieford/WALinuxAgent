@@ -59,20 +59,23 @@ class CGroupUtil(object):
     @staticmethod
     def get_cgroup_api():
         """
-        Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent are returns
+        Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent and returns
         the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
         """
         v1 = SystemdCgroupApiv1()
         v2 = SystemdCgroupApiv2()
 
-        log_cgroup_info("Controllers mounted in v1: {0}. Controllers mounted in v2: {1}".format(v1.get_mounted_controllers(), v2.get_mounted_controllers()))
+        v1_controllers = v1.get_controllers()
+        v2_controllers = v2.get_controllers()
+
+        log_cgroup_info("Controllers in v1: {0}. Controllers in v2: {1}".format(v1_controllers, v2_controllers))
 
         # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
         # v1, use v1.
-        if v1.is_cpu_or_memory_mounted():
+        if len(v1_controllers) > 0:
             log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
             return v1
-        elif v2.is_cpu_or_memory_mounted():
+        elif len(v2_controllers) > 0:
             log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
             return v2
         else:
@@ -167,7 +170,6 @@ class _SystemdCgroupApi(object):
     Cgroup interface via systemd. Contains common api implementations between cgroup v1 and v2.
     """
     def __init__(self):
-        self._cgroup_mountpoints = {}
         self._agent_unit_name = None
         self._systemd_run_commands = []
         self._systemd_run_commands_lock = threading.RLock()
@@ -179,26 +181,23 @@ class _SystemdCgroupApi(object):
         with self._systemd_run_commands_lock:
             return self._systemd_run_commands[:]
 
-    def is_cpu_or_memory_mounted(self):
+    def get_controllers(self):
         """
-        Returns True if either cpu or memory controllers are mounted and enabled at the root cgroup.
-        """
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
-        return cpu_mount_point is not None or memory_mount_point is not None
-
-    def get_mounted_controllers(self):
-        """
-        Returns a list of the controllers mounted and enabled at the root cgroup. Currently, the only controllers the
+        Returns a list of the controllers mounted or enabled at the root cgroup. Currently, the only controllers the
         agent checks for is cpu and memory.
         """
-        self.get_cgroup_mount_points()  # Updates self._cgroup_mountpoints if empty
-        return [controller for controller, mount_point in self._cgroup_mountpoints.items() if mount_point is not None]
+        controllers = []
+        root_cpu_path, root_memory_path = self.get_controller_root_paths()
+        if root_cpu_path is not None:
+            controllers.append('cpu')
+        if root_memory_path is not None:
+            controllers.append('memory')
+        return controllers
 
-    def get_cgroup_mount_points(self):
+    def get_controller_root_paths(self):
         """
-        Cgroup version specific. Returns a tuple with the mount points for the cpu and memory controllers; the values
-        can be None if the corresponding controller is not mounted or enabled at the root cgroup. Updates
-        self._cgroup_mountpoints if empty.
+        Cgroup version specific. Returns a tuple with the root paths for the cpu and memory controllers; the values can
+        be None if the corresponding controller is not mounted or enabled at the root cgroup.
         """
         raise NotImplementedError()
 
@@ -252,8 +251,15 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
     """
     Cgroup v1 interface via systemd
     """
-    def get_cgroup_mount_points(self):
-        # the output of mount is similar to
+    def __init__(self):
+        super().__init__()
+        self._cgroup_mountpoints = {}
+
+    def get_controller_root_paths(self):
+        # In v1, each controller is mounted at a different path. Use findmnt to get each path and return cpu and memory
+        # mount points as a tuple.
+        #
+        # the output of findmnt is similar to
         #     $ findmnt -t cgroup --noheadings
         #     /sys/fs/cgroup/systemd          cgroup cgroup rw,nosuid,nodev,noexec,relatime,xattr,name=systemd
         #     /sys/fs/cgroup/memory           cgroup cgroup rw,nosuid,nodev,noexec,relatime,memory
@@ -279,7 +285,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         # Ex: ControlGroup=/azure.slice/walinuxagent.service
         #     controlgroup_path[1:] = azure.slice/walinuxagent.service
         controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+        cpu_mount_point, memory_mount_point = self.get_controller_root_paths()
 
         cpu_cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:]) \
             if cpu_mount_point is not None else None
@@ -292,7 +298,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
     def get_process_cgroup_paths(self, process_id):
         cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
 
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+        cpu_mount_point, memory_mount_point = self.get_controller_root_paths()
 
         cpu_cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path) \
             if cpu_mount_point is not None and cpu_cgroup_relative_path is not None else None
@@ -351,7 +357,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         try:
             cgroup_relative_path = os.path.join('azure.slice/azure-vmextensions.slice', extension_slice_name)
 
-            cpu_cgroup_mountpoint, memory_cgroup_mountpoint = self.get_cgroup_mount_points()
+            cpu_cgroup_mountpoint, memory_cgroup_mountpoint = self.get_controller_root_paths()
 
             if cpu_cgroup_mountpoint is None:
                 log_cgroup_info("The CPU controller is not mounted; will not track resource usage", send_event=False)
@@ -409,7 +415,12 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
     """
     Cgroup v2 interface via systemd
     """
-    def is_controller_enabled_at_root(self, controller, root_cgroup):
+    def __init__(self):
+        super().__init__()
+        self._root_cgroup_path = None
+        self._controllers_enabled_at_root = []
+
+    def is_controller_enabled_at_root(self, controller):
         """
         Returns True if the provided controller is enabled at the root cgroup. The cgroup.subtree_control file at the
         root shows a space separated list of the controllers which are enabled to control resource distribution from
@@ -420,16 +431,21 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
                 cpuset cpu io memory hugetlb pids rdma misc
         """
         # Check that the controller is enabled in the cgroup.subtree_control file
-        enabled_controllers_file = os.path.join(root_cgroup, 'cgroup.subtree_control')
-        if os.path.exists(enabled_controllers_file):
-            enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")
-            if controller in enabled_controllers:
-                return True
+        if self._root_cgroup_path is not None:
+            enabled_controllers_file = os.path.join(self._root_cgroup_path, 'cgroup.subtree_control')
+            if os.path.exists(enabled_controllers_file):
+                enabled_controllers = fileutil.read_file(enabled_controllers_file).rstrip().split(" ")
+                if controller in enabled_controllers:
+                    return True
 
         return False
 
-    def get_cgroup_mount_points(self):
-        # The output of mount is similar to
+    def get_controller_root_paths(self):
+        # In v2, there is a unified mount point shared by all controllers. Use findmnt to get the unified mount point,
+        # and check if cpu and memory are enabled at the root. Return a tuple representing the root cgroups for cpu and
+        # memory. Either should be None if the corresponding controller is not enabled at the root.
+        #
+        # The output of findmnt is similar to
         #     $ findmnt -t cgroup2 --noheadings
         #     /sys/fs/cgroup cgroup2 cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
         #
@@ -437,27 +453,27 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         # check is necessary because all non-root "cgroup.subtree_control" files can only contain controllers which are
         # enabled in the parent's "cgroup.subtree_control" file.
 
-        if len(self._cgroup_mountpoints) == 0:
-            cpu = None
-            memory = None
+        if self._root_cgroup_path is None:
             for line in shellutil.run_command(['findmnt', '-t', 'cgroup2', '--noheadings']).splitlines():
                 match = re.search(r'(?P<path>/\S+)\s+cgroup2', line)
                 if match is not None:
-                    mount_point = match.group('path')
-                    if mount_point is not None:
-                        if self.is_controller_enabled_at_root('cpu', mount_point):
-                            cpu = mount_point
-                        if self.is_controller_enabled_at_root('memory', mount_point):
-                            memory = mount_point
-            self._cgroup_mountpoints = {'cpu': cpu, 'memory': memory}
+                    root_cgroup_path = match.group('path')
+                    if root_cgroup_path is not None:
+                        self._root_cgroup_path = root_cgroup_path
+                        if self.is_controller_enabled_at_root('cpu'):
+                            self._controllers_enabled_at_root.append('cpu')
+                        if self.is_controller_enabled_at_root('memory'):
+                            self._controllers_enabled_at_root.append('memory')
 
-        return self._cgroup_mountpoints['cpu'], self._cgroup_mountpoints['memory']
+        root_cpu_path = self._root_cgroup_path if 'cpu' in self._controllers_enabled_at_root else None
+        root_memory_path = self._root_cgroup_path if 'memory' in self._controllers_enabled_at_root else None
+        return root_cpu_path, root_memory_path
 
     def get_unit_cgroup_paths(self, unit_name):
         # Ex: ControlGroup=/azure.slice/walinuxagent.service
         #     controlgroup_path[1:] = azure.slice/walinuxagent.service
         controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+        cpu_mount_point, memory_mount_point = self.get_controller_root_paths()
 
         cpu_cgroup_path = os.path.join(cpu_mount_point, controlgroup_path[1:]) \
             if cpu_mount_point is not None else None
@@ -469,7 +485,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
 
     def get_process_cgroup_paths(self, process_id):
         cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
-        cpu_mount_point, memory_mount_point = self.get_cgroup_mount_points()
+        cpu_mount_point, memory_mount_point = self.get_controller_root_paths()
 
         cpu_cgroup_path = os.path.join(cpu_mount_point, cpu_cgroup_relative_path) \
             if cpu_mount_point is not None and cpu_cgroup_relative_path is not None else None
