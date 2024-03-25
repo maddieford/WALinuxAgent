@@ -24,7 +24,7 @@ import tempfile
 
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.common.utils.fileutil import read_file
-from azurelinuxagent.ga.cgroupapi import SystemdCgroupApiv1, SystemdCgroupApiv2, CGroupUtil
+from azurelinuxagent.ga.cgroupapi import SystemdCgroupApiv1, SystemdCgroupApiv2, CGroupUtil, get_cgroup_api
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.osutil import systemd
 from azurelinuxagent.common.utils import fileutil
@@ -52,25 +52,6 @@ class _MockedFileSystemTestCase(AgentTestCase):
 
 
 class CGroupUtilTestCase(AgentTestCase):
-    def test_get_cgroup_api_is_v1_when_v1_controllers_mounted(self):
-        with mock_cgroup_v1_environment(self.tmp_dir):
-            self.assertIsInstance(CGroupUtil.get_cgroup_api(), SystemdCgroupApiv1)
-
-    def test_get_cgroup_api_is_v2_when_v2_controllers_mounted(self):
-        with mock_cgroup_v2_environment(self.tmp_dir):
-            self.assertIsInstance(CGroupUtil.get_cgroup_api(), SystemdCgroupApiv2)
-
-    def test_get_cgroup_api_is_v1_when_v1_and_v2_controllers_mounted(self):
-        with mock_cgroup_v1_and_v2_environment(self.tmp_dir):
-            self.assertIsInstance(CGroupUtil.get_cgroup_api(), SystemdCgroupApiv1)
-
-    def test_get_cgroup_api_raises_exception_when_no_controllers_mounted(self):
-        with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_controller_root_paths", return_value=(None,None)):
-            with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths", return_value=(None,None)):
-                with self.assertRaises(CGroupsException) as context:
-                    CGroupUtil.get_cgroup_api()
-                self.assertTrue("Controllers needed for resource enforcement and monitoring are not mounted." in str(context.exception))
-
     def test_cgroups_should_be_supported_only_on_ubuntu16_centos7dot4_redhat7dot4_and_later_versions(self):
         test_cases = [
             (['ubuntu', '16.04', 'xenial'], True),
@@ -103,6 +84,25 @@ class CGroupUtilTestCase(AgentTestCase):
 
                 
 class SystemdCgroupsApiTestCase(AgentTestCase):
+    def test_get_cgroup_api_is_v1_when_v1_controllers_mounted(self):
+        with mock_cgroup_v1_environment(self.tmp_dir):
+            self.assertIsInstance(get_cgroup_api(), SystemdCgroupApiv1)
+
+    def test_get_cgroup_api_is_v2_when_v2_controllers_mounted(self):
+        with mock_cgroup_v2_environment(self.tmp_dir):
+            self.assertIsInstance(get_cgroup_api(), SystemdCgroupApiv2)
+
+    def test_get_cgroup_api_is_v1_when_v1_and_v2_controllers_mounted(self):
+        with mock_cgroup_v1_and_v2_environment(self.tmp_dir):
+            self.assertIsInstance(get_cgroup_api(), SystemdCgroupApiv1)
+
+    def test_get_cgroup_api_raises_exception_when_no_controllers_mounted(self):
+        with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_controller_root_paths", return_value=(None,None)):
+            with patch("azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths", return_value=(None,None)):
+                with self.assertRaises(CGroupsException) as context:
+                    get_cgroup_api()
+                self.assertTrue("Controllers needed for resource enforcement and monitoring are not mounted." in str(context.exception))
+
     def test_get_systemd_version_should_return_a_version_number(self):
         # We expect same behavior for v1 and v2
         mock_envs = [mock_cgroup_v1_environment(self.tmp_dir), mock_cgroup_v2_environment(self.tmp_dir)]
@@ -114,17 +114,17 @@ class SystemdCgroupsApiTestCase(AgentTestCase):
 
     def test_get_controllers_has_cpu_and_memory_controllers(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
-            mounted_controllers = CGroupUtil.get_cgroup_api().get_controllers()
+            mounted_controllers = get_cgroup_api().get_controllers()
             self.assertTrue("cpu" in mounted_controllers)
             self.assertTrue("memory" in mounted_controllers)
 
         with mock_cgroup_v2_environment(self.tmp_dir):
-            mounted_controllers = CGroupUtil.get_cgroup_api().get_controllers()
+            mounted_controllers = get_cgroup_api().get_controllers()
             self.assertTrue("cpu" in mounted_controllers)
             self.assertTrue("memory" in mounted_controllers)
 
         with mock_cgroup_v1_and_v2_environment(self.tmp_dir):
-            mounted_controllers = CGroupUtil.get_cgroup_api().get_controllers()  # API will be v1 since this environment as CPU mounted in v1
+            mounted_controllers = get_cgroup_api().get_controllers()  # API will be v1 since this environment as CPU mounted in v1
             self.assertTrue("cpu" in mounted_controllers)
             self.assertFalse("memory" in mounted_controllers) # This environment has memory mounted in v2
 
@@ -141,7 +141,7 @@ class SystemdCgroupsApiTestCase(AgentTestCase):
 class SystemdCgroupsApiv1TestCase(AgentTestCase):
     def test_get_unit_cgroup_paths_should_return_the_cgroup_v1_mount_points(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_unit_cgroup_paths("extension.service")
+            cpu, memory = get_cgroup_api().get_unit_cgroup_paths("extension.service")
             self.assertIn(cpu, '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service',
                           "The mount point for the CPU controller is incorrect")
             self.assertIn(memory, '/sys/fs/cgroup/memory/system.slice/extension.service',
@@ -150,21 +150,21 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
     def test_get_unit_cgroup_path_should_return_None_if_either_cgroup_v1_controller_not_mounted(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_controller_root_paths', return_value=('/sys/fs/cgroup/cpu,cpuacct', None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_unit_cgroup_paths("extension.service")
+                cpu, memory = get_cgroup_api().get_unit_cgroup_paths("extension.service")
                 self.assertIn(cpu, '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service',
                               "The mount point for the CPU controller is incorrect")
                 self.assertIsNone(memory,
                                   "The mount point for the memory controller is None so unit cgroup should be None")
 
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_controller_root_paths', return_value=(None, '/sys/fs/cgroup/memory')):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_unit_cgroup_paths("extension.service")
+                cpu, memory = get_cgroup_api().get_unit_cgroup_paths("extension.service")
                 self.assertIsNone(cpu, "The mount point for the cpu controller is None so unit cgroup should be None")
                 self.assertIn(memory, '/sys/fs/cgroup/memory/system.slice/extension.service',
                               "The mount point for the memory controller is incorrect")
 
     def test_get_process_cgroup_paths_should_return_the_cgroup_v1_mount_points(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+            cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
             self.assertIn(cpu, '/sys/fs/cgroup/cpu,cpuacct/system.slice/walinuxagent.service',
                           "The mount point for the CPU controller is incorrect")
             self.assertIn(memory, '/sys/fs/cgroup/memory/system.slice/walinuxagent.service',
@@ -173,14 +173,14 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
     def test_get_process_cgroup_path_should_return_None_if_either_cgroup_v1_controller_not_mounted(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_controller_root_paths', return_value=('/sys/fs/cgroup/cpu,cpuacct', None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIn(cpu, '/sys/fs/cgroup/cpu,cpuacct/system.slice/walinuxagent.service',
                               "The mount point for the CPU controller is incorrect")
                 self.assertIsNone(memory,
                                   "The mount point for the memory controller is None so unit cgroup should be None")
 
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_controller_root_paths', return_value=(None, '/sys/fs/cgroup/memory')):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIsNone(cpu, "The mount point for the CPU controller is None so unit cgroup should be None")
                 self.assertIn(memory, '/sys/fs/cgroup/memory/system.slice/walinuxagent.service',
                               "The mount point for the memory controller is incorrect")
@@ -188,27 +188,27 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
     def test_get_process_cgroup_v1_path_should_return_None_if_either_relative_path_is_None(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_process_cgroup_relative_paths', return_value=('system.slice/walinuxagent.service', None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIn(cpu, '/sys/fs/cgroup/cpu,cpuacct/system.slice/walinuxagent.service',
                               "The mount point for the CPU controller is incorrect")
                 self.assertIsNone(memory,
                                   "The relative cgroup path for the memory controller is None so unit cgroup should be None")
 
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv1.get_process_cgroup_relative_paths', return_value=(None, 'system.slice/walinuxagent.service')):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIsNone(cpu, "The relative cgroup path for the cpu controller is None so unit cgroup should be None")
                 self.assertIn(memory, '/sys/fs/cgroup/memory/system.slice/walinuxagent.service',
                               "The mount point for the memory controller is incorrect")
 
     def test_get_controller_root_paths_should_return_the_cgroup_v1_controller_mount_points(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_controller_root_paths()
+            cpu, memory = get_cgroup_api().get_controller_root_paths()
             self.assertEqual(cpu, '/sys/fs/cgroup/cpu,cpuacct', "The root cgroup for the CPU controller is incorrect")
             self.assertEqual(memory, '/sys/fs/cgroup/memory', "The root cgroup for the memory controller is incorrect")
 
     def test_get_cpu_and_memory_cgroup_relative_paths_for_process_should_return_the_cgroup_v1_relative_paths(self):
         with mock_cgroup_v1_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_relative_paths('self')
+            cpu, memory = get_cgroup_api().get_process_cgroup_relative_paths('self')
             self.assertEqual(cpu, "system.slice/walinuxagent.service", "The relative path for the CPU cgroup is incorrect")
             self.assertEqual(memory, "system.slice/walinuxagent.service", "The relative memory for the CPU cgroup is incorrect")
 
@@ -225,7 +225,7 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
             with tempfile.TemporaryFile(dir=self.tmp_dir, mode="w+b") as output_file:
                 with patch("subprocess.Popen",
                            side_effect=mock_popen) as popen_patch:  # pylint: disable=unused-variable
-                    command_output = CGroupUtil.get_cgroup_api().start_extension_command(
+                    command_output = get_cgroup_api().start_extension_command(
                         extension_name="Microsoft.Compute.TestExtension-1.2.3",
                         command="A_TEST_COMMAND",
                         cmd_name="test",
@@ -241,7 +241,7 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
     @patch('time.sleep', side_effect=lambda _: mock_sleep())
     def test_start_extension_cgroups_v1_command_should_execute_the_command_in_a_cgroup(self, _):
         with mock_cgroup_v1_environment(self.tmp_dir):
-            CGroupUtil.get_cgroup_api().start_extension_command(
+            get_cgroup_api().start_extension_command(
                 extension_name="Microsoft.Compute.TestExtension-1.2.3",
                 command="test command",
                 cmd_name="test",
@@ -268,7 +268,7 @@ class SystemdCgroupsApiv1TestCase(AgentTestCase):
     def test_start_extension_cgroups_v1_command_should_use_systemd_to_execute_the_command(self, _):
         with mock_cgroup_v1_environment(self.tmp_dir):
             with patch("subprocess.Popen", wraps=subprocess.Popen) as popen_patch:
-                CGroupUtil.get_cgroup_api().start_extension_command(
+                get_cgroup_api().start_extension_command(
                     extension_name="Microsoft.Compute.TestExtension-1.2.3",
                     command="the-test-extension-command",
                     cmd_name="test",
@@ -296,16 +296,16 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
                 return read_file(path)
 
             with patch('azurelinuxagent.common.utils.fileutil.read_file', side_effect=mock_read_file):
-                self.assertFalse(CGroupUtil.get_cgroup_api().is_controller_enabled_at_root('cpu'))
+                self.assertFalse(get_cgroup_api().is_controller_enabled_at_root('cpu'))
 
     def test_is_controller_enabled_at_root_should_return_True_if_controller_is_in_subtree_control_file(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
-            self.assertTrue(CGroupUtil.get_cgroup_api().is_controller_enabled_at_root('memory'))
-            self.assertTrue(CGroupUtil.get_cgroup_api().is_controller_enabled_at_root('cpu'))
+            self.assertTrue(get_cgroup_api().is_controller_enabled_at_root('memory'))
+            self.assertTrue(get_cgroup_api().is_controller_enabled_at_root('cpu'))
 
     def test_get_unit_cgroup_paths_should_return_the_cgroup_v2_mount_points(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_unit_cgroup_paths("extension.service")
+            cpu, memory = get_cgroup_api().get_unit_cgroup_paths("extension.service")
             self.assertEqual(cpu, '/sys/fs/cgroup/system.slice/extension.service',
                           "The mount point for the CPU controller is incorrect")
             self.assertEqual(memory, '/sys/fs/cgroup/system.slice/extension.service',
@@ -314,21 +314,21 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
     def test_get_unit_cgroup_path_should_return_None_if_either_cgroup_v2_controller_not_enabled(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths', return_value=('/sys/fs/cgroup', None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_unit_cgroup_paths("extension.service")
+                cpu, memory = get_cgroup_api().get_unit_cgroup_paths("extension.service")
                 self.assertIn(cpu, '/sys/fs/cgroup/system.slice/extension.service',
                               "The mount point for the CPU controller is incorrect")
                 self.assertIsNone(memory,
                                   "The mount point for the memory controller is None so unit cgroup should be None")
 
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths', return_value=(None, '/sys/fs/cgroup')):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_unit_cgroup_paths("extension.service")
+                cpu, memory = get_cgroup_api().get_unit_cgroup_paths("extension.service")
                 self.assertIsNone(cpu, "The mount point for the cpu controller is None so unit cgroup should be None")
                 self.assertIn(memory, '/sys/fs/cgroup/system.slice/extension.service',
                               "The mount point for the memory controller is incorrect")
 
     def test_get_process_cgroup_paths_should_return_the_cgroup_v2_mount_points(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+            cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
             self.assertIn(cpu, '/sys/fs/cgroup/system.slice/walinuxagent.service',
                           "The mount point for the CPU controller is incorrect")
             self.assertIn(memory, '/sys/fs/cgroup/system.slice/walinuxagent.service',
@@ -337,14 +337,14 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
     def test_get_process_cgroup_path_should_return_None_if_either_cgroup_v2_controller_not_mounted(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths', return_value=('/sys/fs/cgroup', None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIn(cpu, '/sys/fs/cgroup/system.slice/walinuxagent.service',
                               "The mount point for the CPU controller is incorrect")
                 self.assertIsNone(memory,
                                   "The mount point for the memory controller is None so unit cgroup should be None")
 
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths', return_value=(None, '/sys/fs/cgroup')):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIsNone(cpu, "The mount point for the CPU controller is None so unit cgroup should be None")
                 self.assertIn(memory, '/sys/fs/cgroup/system.slice/walinuxagent.service',
                               "The mount point for the memory controller is incorrect")
@@ -352,7 +352,7 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
     def test_get_process_cgroup_v2_path_should_return_None_if_relative_path_is_None(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_process_cgroup_relative_paths', return_value=(None, None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIsNone(cpu, "The relative cgroup path for the cpu controller is None so unit cgroup should be None")
                 self.assertIsNone(memory,
                                   "The relative cgroup path for the memory controller is None so unit cgroup should be None")
@@ -360,27 +360,27 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
     def test_get_process_cgroup_path_should_return_None_if_either_cgroup_v2_controller_not_enabled(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths', return_value=('/sys/fs/cgroup', None)):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIn(cpu, '/sys/fs/cgroup/system.slice/walinuxagent.service',
                               "The mount point for the CPU controller is incorrect")
                 self.assertIsNone(memory,
                                   "The memory controller is not enabled so unit cgroup should be None")
 
             with patch('azurelinuxagent.ga.cgroupapi.SystemdCgroupApiv2.get_controller_root_paths', return_value=(None, '/sys/fs/cgroup')):
-                cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_paths("self")
+                cpu, memory = get_cgroup_api().get_process_cgroup_paths("self")
                 self.assertIsNone(cpu, "The cpu controller is not enabled so unit cgroup should be None")
                 self.assertIn(memory, '/sys/fs/cgroup/system.slice/walinuxagent.service',
                               "The mount point for the memory controller is incorrect")
 
     def test_get_controller_root_paths_should_return_the_cgroup_v2_root_cgroup_path(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_controller_root_paths()
+            cpu, memory = get_cgroup_api().get_controller_root_paths()
             self.assertEqual(cpu, '/sys/fs/cgroup', "The root cgroup for the CPU controller is incorrect")
             self.assertEqual(memory, '/sys/fs/cgroup', "The root cgroup for the memory controller is incorrect")
 
     def test_get_cpu_and_memory_cgroup_relative_paths_for_process_should_return_the_cgroup_v2_relative_paths(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
-            cpu, memory = CGroupUtil.get_cgroup_api().get_process_cgroup_relative_paths('self')
+            cpu, memory = get_cgroup_api().get_process_cgroup_relative_paths('self')
             self.assertEqual(cpu, "system.slice/walinuxagent.service", "The relative path for the CPU cgroup is incorrect")
             self.assertEqual(memory, "system.slice/walinuxagent.service", "The relative memory for the CPU cgroup is incorrect")
 

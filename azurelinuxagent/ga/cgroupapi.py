@@ -57,32 +57,6 @@ class CGroupUtil(object):
                (distro_name.lower() in ('centos', 'redhat') and 8 <= distro_version.major < 9)
 
     @staticmethod
-    def get_cgroup_api():
-        """
-        Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent and returns
-        the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
-        """
-        v1 = SystemdCgroupApiv1()
-        v2 = SystemdCgroupApiv2()
-
-        v1_controllers = v1.get_controllers()
-        v2_controllers = v2.get_controllers()
-
-        log_cgroup_info("Controllers in v1: {0}. Controllers in v2: {1}".format(v1_controllers, v2_controllers))
-
-        # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
-        # v1, use v1.
-        if len(v1_controllers) > 0:
-            log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
-            return v1
-        elif len(v2_controllers) > 0:
-            log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
-            return v2
-        else:
-            log_cgroup_warning("CPU and Memory controllers are not mounted in cgroup v1 or v2")
-            raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
-
-    @staticmethod
     def get_extension_slice_name(extension_name, old_slice=False):
         # The old slice makes it difficult for user to override the limits because they need to place drop-in files on every upgrade if extension slice is different for each version.
         # old slice includes <HandlerName>.<ExtensionName>-<HandlerVersion>
@@ -163,6 +137,32 @@ class SystemdRunError(CGroupsException):
 
     def __init__(self, msg=None):
         super(SystemdRunError, self).__init__(msg)
+
+
+def get_cgroup_api():
+    """
+    Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent and returns
+    the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
+    """
+    v1 = SystemdCgroupApiv1()
+    v2 = SystemdCgroupApiv2()
+
+    v1_controllers = v1.get_controllers()
+    v2_controllers = v2.get_controllers()
+
+    log_cgroup_info("Controllers in v1: {0}. Controllers in v2: {1}".format(v1_controllers, v2_controllers))
+
+    # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
+    # v1, use v1.
+    if len(v1_controllers) > 0:
+        log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
+        return v1
+    elif len(v2_controllers) > 0:
+        log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
+        return v2
+    else:
+        log_cgroup_warning("CPU and Memory controllers are not mounted in cgroup v1 or v2")
+        raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
 
 
 class _SystemdCgroupApi(object):

@@ -24,7 +24,7 @@ import threading
 from azurelinuxagent.common import conf
 from azurelinuxagent.common import logger
 from azurelinuxagent.ga.cgroup import CpuCgroup, AGENT_NAME_TELEMETRY, MetricsCounter, MemoryCgroup
-from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupApiv2, log_cgroup_info, log_cgroup_warning
+from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupApiv2, log_cgroup_info, log_cgroup_warning, get_cgroup_api
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.exception import ExtensionErrorCodes, CGroupsException, AgentMemoryExceededException
 from azurelinuxagent.common.future import ustr
@@ -173,7 +173,7 @@ class CGroupConfigurator(object):
                 # Determine which version of the Cgroup API should be used. If the correct version can't be determined,
                 # do not enable resource monitoring/enforcement.
                 try:
-                    self._cgroups_api = CGroupUtil.get_cgroup_api()
+                    self._cgroups_api = get_cgroup_api()
                 except CGroupsException as e:
                     log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                     return

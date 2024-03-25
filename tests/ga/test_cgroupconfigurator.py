@@ -114,7 +114,7 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
         def mock_get_cgroup_api():
             raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
 
-        with patch('azurelinuxagent.ga.cgroupapi.CGroupUtil.get_cgroup_api', side_effect=mock_get_cgroup_api):
+        with patch('azurelinuxagent.ga.cgroupconfigurator.get_cgroup_api', side_effect=mock_get_cgroup_api):
             with self._get_cgroup_configurator() as configurator:
                 self.assertFalse(configurator.enabled(), "cgroups were enabled")
 
