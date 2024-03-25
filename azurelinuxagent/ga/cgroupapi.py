@@ -41,6 +41,18 @@ CGROUP_FILE_SYSTEM_ROOT = '/sys/fs/cgroup'
 EXTENSION_SLICE_PREFIX = "azure-vmextensions"
 
 
+def log_cgroup_info(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    logger.info("[CGI] " + formatted_string)
+    if send_event:
+        add_event(op=op, message=formatted_string)
+
+
+def log_cgroup_warning(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
+    logger.info("[CGW] " + formatted_string)  # log as INFO for now, in the future it should be logged as WARNING
+    if send_event:
+        add_event(op=op, message=formatted_string, is_success=False, log_event=False)
+
+
 class CGroupUtil(object):
     """
     Cgroup utility methods which are independent of systemd cgroup api.
@@ -116,18 +128,6 @@ class CGroupUtil(object):
         instance (under systemd, moving PIDs across the cgroup file system can produce unpredictable results)
         """
         return CGroupUtil._foreach_legacy_cgroup(lambda *_: None)
-
-
-def log_cgroup_info(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
-    logger.info("[CGI] " + formatted_string)
-    if send_event:
-        add_event(op=op, message=formatted_string)
-
-
-def log_cgroup_warning(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
-    logger.info("[CGW] " + formatted_string)  # log as INFO for now, in the future it should be logged as WARNING
-    if send_event:
-        add_event(op=op, message=formatted_string, is_success=False, log_event=False)
 
 
 class SystemdRunError(CGroupsException):
