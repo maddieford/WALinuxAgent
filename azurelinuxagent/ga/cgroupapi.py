@@ -252,7 +252,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
     Cgroup v1 interface via systemd
     """
     def __init__(self):
-        super().__init__()
+        super(SystemdCgroupApiv1, self).__init__()
         self._cgroup_mountpoints = {}
 
     def get_controller_root_paths(self):
@@ -416,7 +416,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
     Cgroup v2 interface via systemd
     """
     def __init__(self):
-        super().__init__()
+        super(SystemdCgroupApiv2, self).__init__()
         self._root_cgroup_path = None
         self._controllers_enabled_at_root = []
 
