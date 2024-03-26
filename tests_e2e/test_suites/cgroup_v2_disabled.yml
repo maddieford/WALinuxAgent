@@ -4,7 +4,7 @@
 #
 name: "Cgroupsv2Disabled"
 tests:
-  - "cgroups_v2_disabled/cgroup_v2_disabled.py"
+  - "cgroup_v2_disabled/cgroup_v2_disabled.py"
 images:
   - "ubuntu_2204"
   - "ubuntu_2404"
