@@ -101,8 +101,6 @@ class SystemdCgroupsApiTestCase(AgentTestCase):
         with mock_cgroup_hybrid_environment(self.tmp_dir):
             with patch("os.path.exists", return_value=True):
                 with patch('azurelinuxagent.common.utils.fileutil.read_file', return_value="cpu memory"):
-                    self.assertTrue(os.path.exists('/sys/fs/cgroup/unified'))
-                    self.assertTrue(shellutil.run_command(["stat", "-f", "--format=%T", '/sys/fs/cgroup/unified']).rstrip() == "cgroup2fs")
                     with self.assertRaises(CGroupsException) as context:
                         get_cgroup_api()
                     self.assertTrue("Detected hybrid cgroup mode, but there are controllers available to be enabled in unified hierarchy: cpu memory" in str(context.exception))

@@ -156,7 +156,7 @@ def get_cgroup_api():
     root_hierarchy_mode = shellutil.run_command(["stat", "-f", "--format=%T", CGROUP_FILE_SYSTEM_ROOT]).rstrip()
 
     if root_hierarchy_mode == "cgroup2fs":
-        log_cgroup_info("Using cgroups v2 for resource enforcement and monitoring")
+        log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
         return SystemdCgroupApiv2()
 
     elif root_hierarchy_mode == "tmpfs":
@@ -170,7 +170,7 @@ def get_cgroup_api():
                 if available_unified_controllers != "":
                     raise CGroupsException("Detected hybrid cgroup mode, but there are controllers available to be enabled in unified hierarchy: {0}".format(available_unified_controllers))
 
-        log_cgroup_info("Using cgroups v1 for resource enforcement and monitoring")
+        log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
         return SystemdCgroupApiv1()
 
     raise CGroupsException("Detected unknown cgroup mode: {0}".format(root_hierarchy_mode))

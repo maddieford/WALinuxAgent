@@ -195,7 +195,7 @@ class CGroupConfigurator(object):
                                                                                                        memory_controller_root)
 
                 if self.cgroup_v2_enabled():
-                    log_cgroup_info("Agent and extensions resource monitoring is not currently supported on cgroups v2")
+                    log_cgroup_info("Agent and extensions resource monitoring is not currently supported on cgroup v2")
                     return
 
                 if self._agent_cpu_cgroup_path is not None or self._agent_memory_cgroup_path is not None:

@@ -61,20 +61,20 @@ class Cgroupsv2Disabled(AgentVmTest):
         # Verify that the agent chose v2 for resource enforcement and monitoring
         log.info("")
         log.info("Checking that the agent chose cgroups v2 api for resource enforcement and monitoring...")
-        self.check_agent_log_contains('Using cgroups v2 for resource enforcement and monitoring', 'The agent should choose v2 for api resource enforcement and monitoring')
+        self.check_agent_log_contains('Using cgroup v2 for resource enforcement and monitoring', 'The agent should choose v2 for api resource enforcement and monitoring')
 
         # Verify that the agent determined the correct mount point for each controller
         log.info("")
         log.info("Checking that the agent determined the correct mount point for each controller...")
-        self.check_agent_log_contains('The CPU cgroup controller is mounted at /sys/fs/cgroup',
+        self.check_agent_log_contains('The CPU cgroup controller root path is /sys/fs/cgroup',
                                       'The agent should identify the cpu controller to be mounted at /sys/fs/cgroup')
-        self.check_agent_log_contains('The memory cgroup controller is mounted at /sys/fs/cgroup',
+        self.check_agent_log_contains('TThe memory cgroup controller root path is /sys/fs/cgroup',
                                       'The agent should identify the memory controller to be mounted at /sys/fs/cgroup')
 
         # Verify that the agent does not support cgroups v2
         log.info("")
         log.info("Checking that the agent does not use cgroups v2 for resource enforcement and monitoring...")
-        self.check_agent_log_contains('Agent and extensions resource monitoring is not currently supported on cgroups v2',
+        self.check_agent_log_contains('Agent and extensions resource monitoring is not currently supported on cgroup v2',
                                       'The agent should not attempt to use cgroups v2 for resource enforcement and monitoring')
         self.check_agent_log_contains('Agent cgroups enabled: False',
                                       'The agent should not enable cgroups when system is using v2')
