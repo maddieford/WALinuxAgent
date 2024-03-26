@@ -27,7 +27,7 @@ from azurelinuxagent.common.utils.fileutil import read_file
 from azurelinuxagent.ga.cgroupapi import SystemdCgroupApiv1, SystemdCgroupApiv2, CGroupUtil, get_cgroup_api
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.osutil import systemd
-from azurelinuxagent.common.utils import fileutil
+from azurelinuxagent.common.utils import fileutil, shellutil
 from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_cgroup_v2_environment, \
     mock_cgroup_hybrid_environment
 from tests.lib.tools import AgentTestCase, patch, mock_sleep
@@ -101,6 +101,8 @@ class SystemdCgroupsApiTestCase(AgentTestCase):
         with mock_cgroup_hybrid_environment(self.tmp_dir):
             with patch('genericpath.exists', return_value=True):
                 with patch('azurelinuxagent.common.utils.fileutil.read_file', return_value="cpu memory"):
+                    self.assertTrue(os.path.exists('/sys/fs/cgroup/unified'))
+                    self.assertTrue(shellutil.run_command(["stat", "-f", "--format=%T", '/sys/fs/cgroup/unified']).rstrip() == "cgroup2fs")
                     with self.assertRaises(CGroupsException) as context:
                         get_cgroup_api()
                     self.assertTrue("Detected hybrid cgroup mode, but there are controllers available to be enabled in unified hierarchy: cpu memory" in str(context.exception))
