@@ -146,10 +146,6 @@ _MOCKED_PATHS = [
     r"^(/etc/systemd/system)"
 ]
 
-_MOCKED_PATHS_HYBRID = [
-    r"^(/sys/fs/cgroup/unified)"
-]
-
 
 class UnitFilePaths:
     walinuxagent = "/lib/systemd/system/walinuxagent.service"
@@ -217,5 +213,5 @@ def mock_cgroup_hybrid_environment(tmp_dir):
 
     with patch('azurelinuxagent.ga.cgroupapi.CGroupUtil.cgroups_supported', return_value=True):
         with patch('azurelinuxagent.common.osutil.systemd.is_systemd', return_value=True):
-            with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_HYBRID, paths=_MOCKED_PATHS + _MOCKED_PATHS_HYBRID, files=_MOCKED_FILES_HYBRID, data_files=data_files) as mock:
+            with MockEnvironment(tmp_dir, commands=_MOCKED_COMMANDS_COMMON + _MOCKED_COMMANDS_HYBRID, paths=_MOCKED_PATHS, files=_MOCKED_FILES_HYBRID, data_files=data_files) as mock:
                 yield mock

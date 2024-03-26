@@ -94,14 +94,16 @@ class SystemdCgroupsApiTestCase(AgentTestCase):
 
     def test_get_cgroup_api_is_v1_when_hybrid_in_use(self):
         with mock_cgroup_hybrid_environment(self.tmp_dir):
-            self.assertIsInstance(get_cgroup_api(), SystemdCgroupApiv1)
+            with patch('genericpath.exists', return_value=True):
+                self.assertIsInstance(get_cgroup_api(), SystemdCgroupApiv1)
 
     def test_get_cgroup_api_raises_exception_when_hybrid_in_use_and_controllers_available_in_unified_hierarchy(self):
         with mock_cgroup_hybrid_environment(self.tmp_dir):
-            with patch('azurelinuxagent.common.utils.fileutil.read_file', return_value="cpu memory"):
-                with self.assertRaises(CGroupsException) as context:
-                    get_cgroup_api()
-                self.assertTrue("Detected hybrid cgroup mode, but there are controllers available to be enabled in unified hierarchy: cpu memory" in str(context.exception))
+            with patch('genericpath.exists', return_value=True):
+                with patch('azurelinuxagent.common.utils.fileutil.read_file', return_value="cpu memory"):
+                    with self.assertRaises(CGroupsException) as context:
+                        get_cgroup_api()
+                    self.assertTrue("Detected hybrid cgroup mode, but there are controllers available to be enabled in unified hierarchy: cpu memory" in str(context.exception))
 
     def test_get_cgroup_api_raises_exception_when_cgroup_mode_cannot_be_determined(self):
         unknown_cgroup_type = "unknown_cgroup_type"
