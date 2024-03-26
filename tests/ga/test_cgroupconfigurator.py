@@ -35,8 +35,7 @@ from azurelinuxagent.common.exception import CGroupsException, AgentMemoryExceed
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.common.utils import shellutil, fileutil
 from tests.lib.mock_environment import MockCommand
-from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, UnitFilePaths, mock_cgroup_v2_environment, \
-    mock_cgroup_v1_and_v2_environment
+from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, UnitFilePaths, mock_cgroup_v2_environment
 from tests.lib.tools import AgentTestCase, patch, mock_sleep, data_dir, is_python_version_26_or_34, skip_if_predicate_true
 from tests.lib.miscellaneous_tools import format_processes, wait_for
 
@@ -83,24 +82,6 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
                     configurator.initialize()
             yield configurator
 
-    @contextlib.contextmanager
-    def _get_cgroup_configurator_v1_and_v2(self, initialize=True, enable=True, mock_commands=None):
-        CGroupConfigurator._instance = None
-        configurator = CGroupConfigurator.get_instance()
-        CGroupsTelemetry.reset()
-        with mock_cgroup_v1_and_v2_environment(self.tmp_dir) as mock_environment:
-            if mock_commands is not None:
-                for command in mock_commands:
-                    mock_environment.add_command(command)
-            configurator.mocks = mock_environment
-            if initialize:
-                if not enable:
-                    with patch.object(configurator, "enable"):
-                        configurator.initialize()
-                else:
-                    configurator.initialize()
-            yield configurator
-
     def test_initialize_should_enable_cgroups_v1(self):
         with self._get_cgroup_configurator() as configurator:
             self.assertTrue(configurator.enabled(), "cgroups were not enabled")
@@ -112,7 +93,7 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
     def test_initialize_should_not_enable_when_cgroup_api_cannot_be_determined(self):
         # Mock cgroup api to raise CGroupsException
         def mock_get_cgroup_api():
-            raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
+            raise CGroupsException("")
 
         with patch('azurelinuxagent.ga.cgroupconfigurator.get_cgroup_api', side_effect=mock_get_cgroup_api):
             with self._get_cgroup_configurator() as configurator:
@@ -147,16 +128,6 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
 
             self.assertTrue(configurator.enabled(), "Cgroups should be enabled")
             self.assertFalse(any(cg for cg in tracked.values() if cg.name == 'walinuxagent.service' and 'memory' in cg.path),
-                "The Agent's memory should not be tracked. Tracked: {0}".format(tracked))
-
-    def test_initialize_should_start_tracking_any_controllers_in_v1_if_others_in_v2(self):
-        # This mock environment has cpu controller in v1 and memory controller in v2
-        with self._get_cgroup_configurator_v1_and_v2() as configurator:
-            tracked = CGroupsTelemetry._tracked
-
-            self.assertTrue(configurator.enabled(), "Cgroups should be enabled")
-            self.assertFalse(
-                any(cg for cg in tracked.values() if cg.name == 'walinuxagent.service' and 'memory' in cg.path),
                 "The Agent's memory should not be tracked. Tracked: {0}".format(tracked))
 
     def test_initialize_should_not_enable_cgroups_when_the_cpu_and_memory_controllers_are_not_present(self):

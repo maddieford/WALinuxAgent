@@ -142,27 +142,38 @@ class SystemdRunError(CGroupsException):
 def get_cgroup_api():
     """
     Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent and returns
-    the corresponding Api. If the required controllers are not mounted in v1 or v2, raise CGroupsException.
+    the corresponding Api.
+
+    Uses 'stat -f --format=%T /sys/fs/cgroups' to get the cgroup hierarchy in use.
+        If the result is 'cgroup2fs', cgroup v2 is being used.
+        If the result is 'tmpfs', cgroup v1 or a hybrid mode is being used.
+            If the result of 'stat -f --format=%T /sys/fs/cgroup/hybrid' is 'cgroup2fs', then hybrid mode is being used.
+
+    Raises exception if an unknown mode is detected. Also raises exception if hybrid mode is detected and there are
+    controllers available to be enabled in the hybrid hierarchy (the agent does not support cgroups if there are
+    controllers simultaneously attached to v1 and v2 hierarchies).
     """
-    v1 = SystemdCgroupApiv1()
-    v2 = SystemdCgroupApiv2()
+    root_hierarchy_mode = shellutil.run_command(["stat", "-f", "--format=%T", CGROUP_FILE_SYSTEM_ROOT]).rstrip()
 
-    v1_controllers = v1.get_controllers()
-    v2_controllers = v2.get_controllers()
+    if root_hierarchy_mode == "cgroup2fs":
+        log_cgroup_info("Using cgroups v2 for resource enforcement and monitoring")
+        return SystemdCgroupApiv2()
 
-    log_cgroup_info("Controllers in v1: {0}. Controllers in v2: {1}".format(v1_controllers, v2_controllers))
+    elif root_hierarchy_mode == "tmpfs":
+        # Check if a hybrid mode is being used
+        unified_hierarchy_path = os.path.join(CGROUP_FILE_SYSTEM_ROOT, "unified")
+        if os.path.exists(unified_hierarchy_path) and shellutil.run_command(["stat", "-f", "--format=%T", unified_hierarchy_path]).rstrip() == "cgroup2fs":
+            # Hybrid mode is being used. Check if any controllers are available to be enabled in the unified hierarchy.
+            available_unified_controllers_file = os.path.join(unified_hierarchy_path, "cgroup.controllers")
+            if os.path.exists(available_unified_controllers_file):
+                available_unified_controllers = fileutil.read_file(available_unified_controllers_file).rstrip()
+                if available_unified_controllers != "":
+                    raise CGroupsException("Detected hybrid cgroup mode, but there are controllers available to be enabled in unified hierarchy: {0}".format(available_unified_controllers))
 
-    # It is possible for different controllers to be simultaneously mounted under v1 and v2. If any are mounted under
-    # v1, use v1.
-    if len(v1_controllers) > 0:
-        log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
-        return v1
-    elif len(v2_controllers) > 0:
-        log_cgroup_info("Using cgroup v2 for resource enforcement and monitoring")
-        return v2
-    else:
-        log_cgroup_warning("CPU and Memory controllers are not mounted in cgroup v1 or v2")
-        raise CGroupsException("Controllers needed for resource enforcement and monitoring are not mounted.")
+        log_cgroup_info("Using cgroups v1 for resource enforcement and monitoring")
+        return SystemdCgroupApiv1()
+
+    raise CGroupsException("Detected unknown cgroup mode: {0}".format(root_hierarchy_mode))
 
 
 class _SystemdCgroupApi(object):
@@ -180,19 +191,6 @@ class _SystemdCgroupApi(object):
         """
         with self._systemd_run_commands_lock:
             return self._systemd_run_commands[:]
-
-    def get_controllers(self):
-        """
-        Returns a list of the controllers mounted or enabled at the root cgroup. Currently, the only controllers the
-        agent checks for is cpu and memory.
-        """
-        controllers = []
-        root_cpu_path, root_memory_path = self.get_controller_root_paths()
-        if root_cpu_path is not None:
-            controllers.append('cpu')
-        if root_memory_path is not None:
-            controllers.append('memory')
-        return controllers
 
     def get_controller_root_paths(self):
         """
@@ -441,7 +439,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         return False
 
     def get_controller_root_paths(self):
-        # In v2, there is a unified mount point shared by all controllers. Use findmnt to get the unified mount point,
+        # In v2, there is a hybrid mount point shared by all controllers. Use findmnt to get the hybrid mount point,
         # and check if cpu and memory are enabled at the root. Return a tuple representing the root cgroups for cpu and
         # memory. Either should be None if the corresponding controller is not enabled at the root.
         #
@@ -449,7 +447,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         #     $ findmnt -t cgroup2 --noheadings
         #     /sys/fs/cgroup cgroup2 cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot
         #
-        # Since v2 is a unified hierarchy, this method checks if each controller is enabled at the root cgroup. This
+        # Since v2 is a hybrid hierarchy, this method checks if each controller is enabled at the root cgroup. This
         # check is necessary because all non-root "cgroup.subtree_control" files can only contain controllers which are
         # enabled in the parent's "cgroup.subtree_control" file.
 
