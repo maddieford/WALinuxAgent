@@ -94,12 +94,12 @@ class SystemdCgroupsApiTestCase(AgentTestCase):
 
     def test_get_cgroup_api_is_v1_when_hybrid_in_use(self):
         with mock_cgroup_hybrid_environment(self.tmp_dir):
-            with patch('genericpath.exists', return_value=True):
+            with patch('tests.lib.mock_environment.MockEnvironment._mock_path_exists', return_value=True):
                 self.assertIsInstance(get_cgroup_api(), SystemdCgroupApiv1)
 
     def test_get_cgroup_api_raises_exception_when_hybrid_in_use_and_controllers_available_in_unified_hierarchy(self):
         with mock_cgroup_hybrid_environment(self.tmp_dir):
-            with patch('genericpath.exists', return_value=True):
+            with patch('tests.lib.mock_environment.MockEnvironment._mock_path_exists', return_value=True):
                 with patch('azurelinuxagent.common.utils.fileutil.read_file', return_value="cpu memory"):
                     self.assertTrue(os.path.exists('/sys/fs/cgroup/unified'))
                     self.assertTrue(shellutil.run_command(["stat", "-f", "--format=%T", '/sys/fs/cgroup/unified']).rstrip() == "cgroup2fs")
