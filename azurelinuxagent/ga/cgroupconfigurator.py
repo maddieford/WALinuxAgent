@@ -189,10 +189,7 @@ class CGroupConfigurator(object):
 
                 self.__setup_azure_slice()
 
-                cpu_controller_root, memory_controller_root = self.__get_cgroup_controller_roots()
-                self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroup_paths(agent_slice,
-                                                                                                       cpu_controller_root,
-                                                                                                       memory_controller_root)
+                self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroup_paths(agent_slice)
 
                 if self.cgroup_v2_enabled():
                     log_cgroup_info("Agent and extensions resource monitoring is not currently supported on cgroup v2")
@@ -398,9 +395,10 @@ class CGroupConfigurator(object):
                         return True
             return False
 
-        def __get_agent_cgroup_paths(self, agent_slice, cpu_controller_root, memory_controller_root):
+        def __get_agent_cgroup_paths(self, agent_slice):
             agent_unit_name = systemd.get_agent_unit_name()
 
+            cpu_controller_root, memory_controller_root = self.__get_cgroup_controller_roots()
             expected_relative_path = os.path.join(agent_slice, agent_unit_name)
             cpu_cgroup_relative_path, memory_cgroup_relative_path = self._cgroups_api.get_process_cgroup_relative_paths(
                 "self")
