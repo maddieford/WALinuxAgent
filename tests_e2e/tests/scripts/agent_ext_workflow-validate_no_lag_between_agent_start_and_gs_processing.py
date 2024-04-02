@@ -49,7 +49,7 @@ def main():
         verified_atleast_one_agent_started_log_line = False
         verified_atleast_one_gs_complete_log_line = False
 
-        agent_log = AgentLog(Path('/home/maddieford/tmp/waagent.log'))
+        agent_log = AgentLog(Path('/var/log/waagent.log'))
 
         try:
             for agent_record in agent_log.read():
