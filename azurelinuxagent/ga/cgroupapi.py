@@ -144,15 +144,21 @@ def get_cgroup_api():
     Determines which version of Cgroup should be used for resource enforcement and monitoring by the Agent and returns
     the corresponding Api.
 
-    Uses 'stat -f --format=%T /sys/fs/cgroups' to get the cgroup hierarchy in use.
+    Uses 'stat -f --format=%T /sys/fs/cgroup' to get the cgroup hierarchy in use.
         If the result is 'cgroup2fs', cgroup v2 is being used.
         If the result is 'tmpfs', cgroup v1 or a hybrid mode is being used.
             If the result of 'stat -f --format=%T /sys/fs/cgroup/unified' is 'cgroup2fs', then hybrid mode is being used.
 
-    Raises exception if an unknown mode is detected. Also raises exception if hybrid mode is detected and there are
-    controllers available to be enabled in the unified hierarchy (the agent does not support cgroups if there are
-    controllers simultaneously attached to v1 and v2 hierarchies).
+    Raises exception if cgroup filesystem mountpoint is not '/sys/fs/cgroup', or an unknown mode is detected. Also
+    raises exception if hybrid mode is detected and there are controllers available to be enabled in the unified
+    hierarchy (the agent does not support cgroups if there are controllers simultaneously attached to v1 and v2
+    hierarchies).
     """
+    if not os.path.exists(CGROUP_FILE_SYSTEM_ROOT):
+        v1_mount_point = shellutil.run_command(['findmnt', '-t', 'cgroup', '--noheadings'])
+        v2_mount_point = shellutil.run_command(['findmnt', '-t', 'cgroup2', '--noheadings'])
+        raise CGroupsException("Expected cgroup filesystem to be mounted at '/sys/fs/cgroup', but it is not.\n v1 mount point: {0}\n v2 mount point: {1}".format(v1_mount_point, v2_mount_point))
+
     root_hierarchy_mode = shellutil.run_command(["stat", "-f", "--format=%T", CGROUP_FILE_SYSTEM_ROOT]).rstrip()
 
     if root_hierarchy_mode == "cgroup2fs":
@@ -407,7 +413,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         self._root_cgroup_path = None
         self._controllers_enabled_at_root = []
 
-    def is_controller_enabled_at_root(self, controller):
+    def _is_controller_enabled_at_root(self, controller):
         """
         Returns True if the provided controller is enabled at the root cgroup. The cgroup.subtree_control file at the
         root shows a space separated list of the controllers which are enabled to control resource distribution from
@@ -445,9 +451,9 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
                     root_cgroup_path = match.group('path')
                     if root_cgroup_path is not None:
                         self._root_cgroup_path = root_cgroup_path
-                        if self.is_controller_enabled_at_root('cpu'):
+                        if self._is_controller_enabled_at_root('cpu'):
                             self._controllers_enabled_at_root.append('cpu')
-                        if self.is_controller_enabled_at_root('memory'):
+                        if self._is_controller_enabled_at_root('memory'):
                             self._controllers_enabled_at_root.append('memory')
 
         root_cpu_path = self._root_cgroup_path if 'cpu' in self._controllers_enabled_at_root else None

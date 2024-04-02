@@ -170,7 +170,7 @@ class CGroupConfigurator(object):
 
                 log_cgroup_info("systemd version: {0}".format(systemd.get_version()))
 
-                # Determine which version of the Cgroup API should be used. If the correct version can't be determined,
+                # Determine which version of the Cgroup Api should be used. If the correct version can't be determined,
                 # do not enable resource monitoring/enforcement.
                 try:
                     self._cgroups_api = get_cgroup_api()
@@ -189,14 +189,14 @@ class CGroupConfigurator(object):
 
                 self.__setup_azure_slice()
 
+                if self.cgroup_v2_enabled():
+                    log_cgroup_info("Agent and extensions resource monitoring is not currently supported on cgroup v2")
+                    return
+
                 cpu_controller_root, memory_controller_root = self.__get_cgroup_controller_roots()
                 self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroup_paths(agent_slice,
                                                                                                        cpu_controller_root,
                                                                                                        memory_controller_root)
-
-                if self.cgroup_v2_enabled():
-                    log_cgroup_info("Agent and extensions resource monitoring is not currently supported on cgroup v2")
-                    return
 
                 if self._agent_cpu_cgroup_path is not None or self._agent_memory_cgroup_path is not None:
                     self.enable()

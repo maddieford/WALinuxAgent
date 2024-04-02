@@ -290,14 +290,14 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
                 return read_file(path)
 
             with patch('azurelinuxagent.common.utils.fileutil.read_file', side_effect=mock_read_file):
-                self.assertFalse(get_cgroup_api().is_controller_enabled_at_root('cpu'))
+                self.assertFalse(get_cgroup_api()._is_controller_enabled_at_root('cpu'))
 
     def test_is_controller_enabled_at_root_should_return_True_if_controller_is_in_subtree_control_file(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             cgroup_api = get_cgroup_api()
             cgroup_api.get_controller_root_paths()
-            self.assertTrue(cgroup_api.is_controller_enabled_at_root('memory'))
-            self.assertTrue(cgroup_api.is_controller_enabled_at_root('cpu'))
+            self.assertTrue(cgroup_api._is_controller_enabled_at_root('memory'))
+            self.assertTrue(cgroup_api._is_controller_enabled_at_root('cpu'))
 
     def test_get_unit_cgroup_paths_should_return_the_cgroup_v2_cgroup_paths(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
