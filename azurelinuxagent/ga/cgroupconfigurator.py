@@ -598,7 +598,7 @@ class CGroupConfigurator(object):
 
             Raises a CGroupsException if the check fails
             """
-            unexpected = set()
+            unexpected = []
             agent_cgroup_proc_names = []
             if len(self._agent_cgroup_paths) == 0:
                 return
