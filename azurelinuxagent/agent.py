@@ -31,7 +31,7 @@ import threading
 
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
-from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup
+from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup, get_cgroup
 from azurelinuxagent.ga.cgroupapi import get_cgroup_api, log_cgroup_warning, InvalidCgroupMountpointException
 
 import azurelinuxagent.common.conf as conf
@@ -208,8 +208,7 @@ class Agent(object):
 
         # Check the cgroups unit
         log_collector_monitor = None
-        cpu_cgroup_path = None
-        memory_cgroup_path = None
+        process_cgroup_paths = {}
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
             try:
                 cgroup_api = get_cgroup_api()
@@ -220,39 +219,36 @@ class Agent(object):
                 log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
-            cpu_cgroup_path, memory_cgroup_path = cgroup_api.get_process_cgroup_paths("self")
-            cpu_slice_matches = False
-            memory_slice_matches = False
-            if cpu_cgroup_path is not None:
-                cpu_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in cpu_cgroup_path)
-            if memory_cgroup_path is not None:
-                memory_slice_matches = (cgroupconfigurator.LOGCOLLECTOR_SLICE in memory_cgroup_path)
+            process_cgroup_paths = cgroup_api.get_process_cgroup_paths("self")
+            cgroups_in_expected_slice = True
+            for controller in cgroup_api.get_agent_cgroup_controllers():
+                controller_cgroup_path = process_cgroup_paths.get(controller)
+                if controller_cgroup_path is None or cgroupconfigurator.LOGCOLLECTOR_SLICE not in controller_cgroup_path:
+                    log_cgroup_warning("unexpected {0} slice: {1}".format(controller, controller_cgroup_path), send_event=False)
+                    cgroups_in_expected_slice = False
 
-            if not cpu_slice_matches or not memory_slice_matches:
-                log_cgroup_warning("The Log Collector process is not in the proper cgroups:", send_event=False)
-                if not cpu_slice_matches:
-                    log_cgroup_warning("\tunexpected cpu slice: {0}".format(cpu_cgroup_path), send_event=False)
-                if not memory_slice_matches:
-                    log_cgroup_warning("\tunexpected memory slice: {0}".format(memory_cgroup_path), send_event=False)
-
+            if not cgroups_in_expected_slice:
+                log_cgroup_warning("The Log Collector process is not in the proper cgroups", send_event=False)
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
-        def initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path):
-            cpu_cgroup = CpuCgroup(AGENT_LOG_COLLECTOR, cpu_cgroup_path)
-            msg = "Started tracking cpu cgroup {0}".format(cpu_cgroup)
-            logger.info(msg)
-            cpu_cgroup.initialize_cpu_usage()
-            memory_cgroup = MemoryCgroup(AGENT_LOG_COLLECTOR, memory_cgroup_path)
-            msg = "Started tracking memory cgroup {0}".format(memory_cgroup)
-            logger.info(msg)
-            return [cpu_cgroup, memory_cgroup]
+        def initialize_cgroups_tracking(process_cgroup_paths):
+            tracked_cgroups = []
+            for controller, cgroup_path in process_cgroup_paths.items():
+                cgroup = get_cgroup(controller, AGENT_LOG_COLLECTOR, cgroup_path)
+                msg = "Started tracking {0} cgroup {1}".format(controller, cgroup)
+                logger.info(msg)
+                tracked_cgroups.append(cgroup)
+                # TODO: MADDIE CONSIDER INIT CPU USAGE IN LOGCOLLECTORMONITORHANDLER
+                if 'cpu' in controller:
+                    cgroup.initialize_cpu_usage()
+            return tracked_cgroups
 
         try:
             log_collector = LogCollector(is_full_mode)
             # Running log collector resource(CPU, Memory) monitoring only if agent starts the log collector.
             # If Log collector start by any other means, then it will not be monitored.
             if CollectLogsHandler.is_enabled_monitor_cgroups_check():
-                tracked_cgroups = initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path)
+                tracked_cgroups = initialize_cgroups_tracking(process_cgroup_paths)
                 log_collector_monitor = get_log_collector_monitor_handler(tracked_cgroups)
                 log_collector_monitor.run()
             archive = log_collector.collect_logs_and_get_archive()

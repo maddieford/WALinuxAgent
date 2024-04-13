@@ -888,7 +888,7 @@ exit 0
             # check_processes_in_agent_cgroup uses shellutil and the cgroups api to get the commands that are currently running;
             # wait for all the processes to show up
             #
-            if not wait_for(lambda: len(shellutil.get_running_commands()) > 0 and len(configurator._cgroups_api.get_systemd_run_commands()) > 0):
+            if not wait_for(lambda: len(shellutil.get_running_commands()) > 0 and len(configurator._cgroup_api.get_systemd_run_commands()) > 0):
                 raise Exception("Timeout while attempting to track the child commands")
 
             #

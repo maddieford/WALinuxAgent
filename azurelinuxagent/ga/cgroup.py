@@ -88,6 +88,20 @@ class MetricsCounter(object):
 re_user_system_times = re.compile(r'user (\d+)\nsystem (\d+)\n')
 
 
+def get_cgroup(controller, name, cgroup_path):
+    """
+    Returns the correct Cgroup according to the value of 'controller' argument:
+        'cpu,cpuacct' or 'cpu' -> CpuCgroup
+        'memory' -> MemoryCgroup
+    """
+    if 'cpu' in controller:
+        return CpuCgroup(name, cgroup_path)
+    elif controller == 'memory':
+        return MemoryCgroup(name, cgroup_path)
+    else:
+        raise CGroupsException("The agent does not support tracking the {0} controller".format(controller))
+
+
 class CGroup(object):
     def __init__(self, name, cgroup_path):
         """
