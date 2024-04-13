@@ -606,9 +606,11 @@ class CGroupConfigurator(object):
             # Now we call _check_processes_in_agent_cgroup before we enable the cgroups or any one of the controller is not mounted, agent cgroup paths can be None.
             # so we need to check all.
             cgroup_path = ""
-            for path in self._agent_cgroup_paths.values():
-                cgroup_path = path
-                break
+            for controller in self._cgroup_api.get_agent_cgroup_controllers():
+                path = self._agent_cgroup_paths.get(controller)
+                if path is not None:
+                    cgroup_path = path
+                    break
             try:
                 daemon = os.getppid()
                 extension_handler = os.getpid()
