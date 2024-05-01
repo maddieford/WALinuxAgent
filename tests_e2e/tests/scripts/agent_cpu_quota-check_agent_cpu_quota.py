@@ -54,7 +54,7 @@ def prepare_agent():
     #
     #       And the agent's cgroup looks like
     #
-    #       CGroup: /azure.slice/walinuxagent.service
+    #       ControllerMetrics: /azure.slice/walinuxagent.service
     #              ├─10507 /usr/bin/python3 /home/azureuser/bin/agent_cpu_quota-start_service.py /usr/bin/python3 -u /usr/sbin/waagent -daemon
     #              ├─10508 /usr/bin/python3 -u /usr/sbin/waagent -daemon
     #              ├─10516 python3 -u bin/WALinuxAgent-9.9.9.9-py3.8.egg -run-exthandlers

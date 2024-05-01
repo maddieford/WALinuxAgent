@@ -19,7 +19,7 @@ import shutil
 import subprocess
 import tempfile
 
-from azurelinuxagent.ga.cgroup import CpuCgroup
+from azurelinuxagent.ga.controllermetrics import CpuMetrics
 from azurelinuxagent.common.exception import ExtensionError, ExtensionErrorCodes
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.ga.extensionprocessutil import format_stdout_stderr, read_output, \
@@ -158,7 +158,7 @@ class TestProcessUtils(AgentTestCase):
                         test_file = os.path.join(self.tmp_dir, "cpu.stat")
                         shutil.copyfile(os.path.join(data_dir, "cgroups", "cpu.stat_t0"),
                                         test_file)  # throttled_time = 50
-                        cgroup = CpuCgroup("test", self.tmp_dir)
+                        cgroup = CpuMetrics("test", self.tmp_dir)
                         process = subprocess.Popen(command,  # pylint: disable=subprocess-popen-preexec-fn
                                                    shell=True,
                                                    cwd=self.tmp_dir,

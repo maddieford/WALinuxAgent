@@ -22,7 +22,7 @@ import os
 import random
 import shutil
 
-from azurelinuxagent.ga.cgroup import CpuCgroup, MemoryCgroup, MetricsCounter, CounterNotFound
+from azurelinuxagent.ga.controllermetrics import CpuMetrics, MemoryMetrics, MetricsCounter, CounterNotFound
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.common.osutil import get_osutil
 from azurelinuxagent.common.utils import fileutil
@@ -38,7 +38,7 @@ def consume_cpu_time():
 
 class TestCGroup(AgentTestCase):
     def test_is_active(self):
-        test_cgroup = CpuCgroup("test_extension", self.tmp_dir)
+        test_cgroup = CpuMetrics("test_extension", self.tmp_dir)
         self.assertEqual(False, test_cgroup.is_active())
 
         with open(os.path.join(self.tmp_dir, "tasks"), mode="wb") as tasks:
@@ -48,10 +48,10 @@ class TestCGroup(AgentTestCase):
 
     @patch("azurelinuxagent.common.logger.periodic_warn")
     def test_is_active_file_not_present(self, patch_periodic_warn):
-        test_cgroup = CpuCgroup("test_extension", self.tmp_dir)
+        test_cgroup = CpuMetrics("test_extension", self.tmp_dir)
         self.assertEqual(False, test_cgroup.is_active())
 
-        test_cgroup = MemoryCgroup("test_extension", os.path.join(self.tmp_dir, "this_cgroup_does_not_exist"))
+        test_cgroup = MemoryMetrics("test_extension", os.path.join(self.tmp_dir, "this_cgroup_does_not_exist"))
         self.assertEqual(False, test_cgroup.is_active())
 
         self.assertEqual(0, patch_periodic_warn.call_count)
@@ -59,7 +59,7 @@ class TestCGroup(AgentTestCase):
     @patch("azurelinuxagent.common.logger.periodic_warn")
     def test_is_active_incorrect_file(self, patch_periodic_warn):
         open(os.path.join(self.tmp_dir, "tasks"), mode="wb").close()
-        test_cgroup = CpuCgroup("test_extension", os.path.join(self.tmp_dir, "tasks"))
+        test_cgroup = CpuMetrics("test_extension", os.path.join(self.tmp_dir, "tasks"))
         self.assertEqual(False, test_cgroup.is_active())
         self.assertEqual(1, patch_periodic_warn.call_count)
 
@@ -99,7 +99,7 @@ class TestCpuCgroup(AgentTestCase):
         TestCpuCgroup.mock_read_file_map.clear()
 
     def test_initialize_cpu_usage_should_set_current_cpu_usage(self):
-        cgroup = CpuCgroup("test", "/sys/fs/cgroup/cpu/system.slice/test")
+        cgroup = CpuMetrics("test", "/sys/fs/cgroup/cpu/system.slice/test")
 
         TestCpuCgroup.mock_read_file_map = {
             "/proc/stat": os.path.join(data_dir, "cgroups", "proc_stat_t0"),
@@ -114,7 +114,7 @@ class TestCpuCgroup(AgentTestCase):
     def test_get_cpu_usage_should_return_the_cpu_usage_since_its_last_invocation(self):
         osutil = get_osutil()
 
-        cgroup = CpuCgroup("test", "/sys/fs/cgroup/cpu/system.slice/test")
+        cgroup = CpuMetrics("test", "/sys/fs/cgroup/cpu/system.slice/test")
 
         TestCpuCgroup.mock_read_file_map = {
             "/proc/stat": os.path.join(data_dir, "cgroups", "proc_stat_t0"),
@@ -142,7 +142,7 @@ class TestCpuCgroup(AgentTestCase):
         self.assertEqual(cpu_usage, round(100.0 * 0.000445181085968 * osutil.get_processor_cores(), 3))
 
     def test_initialize_cpu_usage_should_set_the_cgroup_usage_to_0_when_the_cgroup_does_not_exist(self):
-        cgroup = CpuCgroup("test", "/sys/fs/cgroup/cpu/system.slice/test")
+        cgroup = CpuMetrics("test", "/sys/fs/cgroup/cpu/system.slice/test")
 
         io_error_2 = IOError()
         io_error_2.errno = errno.ENOENT  # "No such directory"
@@ -158,7 +158,7 @@ class TestCpuCgroup(AgentTestCase):
         self.assertEqual(cgroup._current_system_cpu, 5496872)  # check the system usage just for test sanity
 
     def test_initialize_cpu_usage_should_raise_an_exception_when_called_more_than_once(self):
-        cgroup = CpuCgroup("test", "/sys/fs/cgroup/cpu/system.slice/test")
+        cgroup = CpuMetrics("test", "/sys/fs/cgroup/cpu/system.slice/test")
 
         TestCpuCgroup.mock_read_file_map = {
             "/proc/stat": os.path.join(data_dir, "cgroups", "proc_stat_t0"),
@@ -171,7 +171,7 @@ class TestCpuCgroup(AgentTestCase):
             cgroup.initialize_cpu_usage()
 
     def test_get_cpu_usage_should_raise_an_exception_when_initialize_cpu_usage_has_not_been_invoked(self):
-        cgroup = CpuCgroup("test", "/sys/fs/cgroup/cpu/system.slice/test")
+        cgroup = CpuMetrics("test", "/sys/fs/cgroup/cpu/system.slice/test")
 
         with self.assertRaises(CGroupsException):
             cpu_usage = cgroup.get_cpu_usage()  # pylint: disable=unused-variable
@@ -179,7 +179,7 @@ class TestCpuCgroup(AgentTestCase):
     def test_get_throttled_time_should_return_the_value_since_its_last_invocation(self):
         test_file = os.path.join(self.tmp_dir, "cpu.stat")
         shutil.copyfile(os.path.join(data_dir, "cgroups", "cpu.stat_t0"), test_file)  # throttled_time = 50
-        cgroup = CpuCgroup("test", self.tmp_dir)
+        cgroup = CpuMetrics("test", self.tmp_dir)
         cgroup.initialize_cpu_usage()
         shutil.copyfile(os.path.join(data_dir, "cgroups", "cpu.stat_t1"), test_file)  # throttled_time = 2075541442327
 
@@ -188,7 +188,7 @@ class TestCpuCgroup(AgentTestCase):
         self.assertEqual(throttled_time, float(2075541442327 - 50) / 1E9, "The value of throttled_time is incorrect")
 
     def test_get_tracked_metrics_should_return_the_throttled_time(self):
-        cgroup = CpuCgroup("test", os.path.join(data_dir, "cgroups"))
+        cgroup = CpuMetrics("test", os.path.join(data_dir, "cgroups"))
         cgroup.initialize_cpu_usage()
 
         def find_throttled_time(metrics):
@@ -203,7 +203,7 @@ class TestCpuCgroup(AgentTestCase):
 
 class TestMemoryCgroup(AgentTestCase):
     def test_get_metrics(self):
-        test_mem_cg = MemoryCgroup("test_extension", os.path.join(data_dir, "cgroups", "memory_mount"))
+        test_mem_cg = MemoryMetrics("test_extension", os.path.join(data_dir, "cgroups", "memory_mount"))
 
         memory_usage = test_mem_cg.get_memory_usage()
         self.assertEqual(150000, memory_usage)
@@ -215,7 +215,7 @@ class TestMemoryCgroup(AgentTestCase):
         self.assertEqual(20000, swap_memory_usage)
 
     def test_get_metrics_when_files_not_present(self):
-        test_mem_cg = MemoryCgroup("test_extension", os.path.join(data_dir, "cgroups"))
+        test_mem_cg = MemoryMetrics("test_extension", os.path.join(data_dir, "cgroups"))
 
         with self.assertRaises(IOError) as e:
             test_mem_cg.get_memory_usage()
@@ -233,7 +233,7 @@ class TestMemoryCgroup(AgentTestCase):
         self.assertEqual(e.exception.errno, errno.ENOENT)
 
     def test_get_memory_usage_counters_not_found(self):
-        test_mem_cg = MemoryCgroup("test_extension", os.path.join(data_dir, "cgroups", "missing_memory_counters"))
+        test_mem_cg = MemoryMetrics("test_extension", os.path.join(data_dir, "cgroups", "missing_memory_counters"))
 
         with self.assertRaises(CounterNotFound):
             test_mem_cg.get_memory_usage()

@@ -23,7 +23,7 @@ import threading
 
 from azurelinuxagent.common import conf
 from azurelinuxagent.common import logger
-from azurelinuxagent.ga.cgroup import CpuCgroup, AGENT_NAME_TELEMETRY, MetricsCounter, MemoryCgroup
+from azurelinuxagent.ga.controllermetrics import CpuMetrics, AGENT_NAME_TELEMETRY, MetricsCounter, MemoryMetrics
 from azurelinuxagent.ga.cgroupapi import SystemdRunError, EXTENSION_SLICE_PREFIX, CGroupUtil, SystemdCgroupApiv2, \
     log_cgroup_info, log_cgroup_warning, get_cgroup_api, InvalidCgroupMountpointException
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
@@ -205,11 +205,11 @@ class CGroupConfigurator(object):
                 if self._agent_cpu_cgroup_path is not None:
                     log_cgroup_info("Agent CPU cgroup: {0}".format(self._agent_cpu_cgroup_path))
                     self.__set_cpu_quota(conf.get_agent_cpu_quota())
-                    CGroupsTelemetry.track_cgroup(CpuCgroup(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
+                    CGroupsTelemetry.track_cgroup(CpuMetrics(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
 
                 if self._agent_memory_cgroup_path is not None:
                     log_cgroup_info("Agent Memory cgroup: {0}".format(self._agent_memory_cgroup_path))
-                    self._agent_memory_cgroup = MemoryCgroup(AGENT_NAME_TELEMETRY, self._agent_memory_cgroup_path)
+                    self._agent_memory_cgroup = MemoryMetrics(AGENT_NAME_TELEMETRY, self._agent_memory_cgroup_path)
                     CGroupsTelemetry.track_cgroup(self._agent_memory_cgroup)
 
             except Exception as exception:
@@ -442,7 +442,7 @@ class CGroupConfigurator(object):
                     log_cgroup_info('MemoryAccounting: {0}'.format(memory_accounting))
                 else:
                     log_cgroup_warning(
-                        "The Agent is not in the expected memory cgroup; will not enable monitoring. CGroup:[{0}] Expected:[{1}]".format(memory_cgroup_relative_path, expected_relative_path))
+                        "The Agent is not in the expected memory cgroup; will not enable monitoring. ControllerMetrics:[{0}] Expected:[{1}]".format(memory_cgroup_relative_path, expected_relative_path))
                     memory_cgroup_relative_path = None  # Set the path to None to prevent monitoring
 
             if cpu_controller_root is not None and cpu_cgroup_relative_path is not None:
@@ -496,7 +496,7 @@ class CGroupConfigurator(object):
             elif disable_cgroups == DisableCgroups.AGENT:  # disable agent
                 self._agent_cgroups_enabled = False
                 self.__reset_agent_cpu_quota()
-                CGroupsTelemetry.stop_tracking(CpuCgroup(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
+                CGroupsTelemetry.stop_tracking(CpuMetrics(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
 
             log_cgroup_warning("Disabling resource usage monitoring. Reason: {0}".format(reason), op=WALAEventOperation.CGroupsDisabled)
 
@@ -789,12 +789,12 @@ class CGroupConfigurator(object):
                 if cpu_cgroup_path is None:
                     log_cgroup_info("The CPU controller is not mounted or enabled; will not track resource usage", send_event=False)
                 else:
-                    CGroupsTelemetry.track_cgroup(CpuCgroup(unit_name, cpu_cgroup_path))
+                    CGroupsTelemetry.track_cgroup(CpuMetrics(unit_name, cpu_cgroup_path))
 
                 if memory_cgroup_path is None:
                     log_cgroup_info("The Memory controller is not mounted or enabled; will not track resource usage", send_event=False)
                 else:
-                    CGroupsTelemetry.track_cgroup(MemoryCgroup(unit_name, memory_cgroup_path))
+                    CGroupsTelemetry.track_cgroup(MemoryMetrics(unit_name, memory_cgroup_path))
 
             except Exception as exception:
                 log_cgroup_info("Failed to start tracking resource usage for the extension: {0}".format(ustr(exception)), send_event=False)
@@ -807,10 +807,10 @@ class CGroupConfigurator(object):
                 cpu_cgroup_path, memory_cgroup_path = self._cgroups_api.get_unit_cgroup_paths(unit_name)
 
                 if cpu_cgroup_path is not None:
-                    CGroupsTelemetry.stop_tracking(CpuCgroup(unit_name, cpu_cgroup_path))
+                    CGroupsTelemetry.stop_tracking(CpuMetrics(unit_name, cpu_cgroup_path))
 
                 if memory_cgroup_path is not None:
-                    CGroupsTelemetry.stop_tracking(MemoryCgroup(unit_name, memory_cgroup_path))
+                    CGroupsTelemetry.stop_tracking(MemoryMetrics(unit_name, memory_cgroup_path))
 
             except Exception as exception:
                 log_cgroup_info("Failed to stop tracking resource usage for the extension service: {0}".format(ustr(exception)), send_event=False)
@@ -829,10 +829,10 @@ class CGroupConfigurator(object):
                 memory_cgroup_path = os.path.join(memory_root_path, cgroup_relative_path)
 
                 if cpu_cgroup_path is not None:
-                    CGroupsTelemetry.stop_tracking(CpuCgroup(extension_name, cpu_cgroup_path))
+                    CGroupsTelemetry.stop_tracking(CpuMetrics(extension_name, cpu_cgroup_path))
 
                 if memory_cgroup_path is not None:
-                    CGroupsTelemetry.stop_tracking(MemoryCgroup(extension_name, memory_cgroup_path))
+                    CGroupsTelemetry.stop_tracking(MemoryMetrics(extension_name, memory_cgroup_path))
 
             except Exception as exception:
                 log_cgroup_info("Failed to stop tracking resource usage for the extension service: {0}".format(ustr(exception)), send_event=False)

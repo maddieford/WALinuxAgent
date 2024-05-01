@@ -31,7 +31,7 @@ import threading
 
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
-from azurelinuxagent.ga.cgroup import AGENT_LOG_COLLECTOR, CpuCgroup, MemoryCgroup
+from azurelinuxagent.ga.controllermetrics import AGENT_LOG_COLLECTOR, CpuMetrics, MemoryMetrics
 from azurelinuxagent.ga.cgroupapi import get_cgroup_api, log_cgroup_warning, InvalidCgroupMountpointException
 
 import azurelinuxagent.common.conf as conf
@@ -238,11 +238,11 @@ class Agent(object):
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
         def initialize_cgroups_tracking(cpu_cgroup_path, memory_cgroup_path):
-            cpu_cgroup = CpuCgroup(AGENT_LOG_COLLECTOR, cpu_cgroup_path)
+            cpu_cgroup = CpuMetrics(AGENT_LOG_COLLECTOR, cpu_cgroup_path)
             msg = "Started tracking cpu cgroup {0}".format(cpu_cgroup)
             logger.info(msg)
             cpu_cgroup.initialize_cpu_usage()
-            memory_cgroup = MemoryCgroup(AGENT_LOG_COLLECTOR, memory_cgroup_path)
+            memory_cgroup = MemoryMetrics(AGENT_LOG_COLLECTOR, memory_cgroup_path)
             msg = "Started tracking memory cgroup {0}".format(memory_cgroup)
             logger.info(msg)
             return [cpu_cgroup, memory_cgroup]

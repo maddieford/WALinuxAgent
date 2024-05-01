@@ -24,7 +24,7 @@ import uuid
 
 from azurelinuxagent.common import logger
 from azurelinuxagent.common.event import WALAEventOperation, add_event
-from azurelinuxagent.ga.cgroup import CpuCgroup, MemoryCgroup
+from azurelinuxagent.ga.controllermetrics import CpuMetrics, MemoryMetrics
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.conf import get_agent_pid_file_path
 from azurelinuxagent.common.exception import CGroupsException, ExtensionErrorCodes, ExtensionError, \
@@ -395,14 +395,14 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
                 log_cgroup_info("The CPU controller is not mounted; will not track resource usage", send_event=False)
             else:
                 cpu_cgroup_path = os.path.join(cpu_cgroup_mountpoint, cgroup_relative_path)
-                cpu_cgroup = CpuCgroup(extension_name, cpu_cgroup_path)
+                cpu_cgroup = CpuMetrics(extension_name, cpu_cgroup_path)
                 CGroupsTelemetry.track_cgroup(cpu_cgroup)
 
             if memory_cgroup_mountpoint is None:
                 log_cgroup_info("The Memory controller is not mounted; will not track resource usage", send_event=False)
             else:
                 memory_cgroup_path = os.path.join(memory_cgroup_mountpoint, cgroup_relative_path)
-                memory_cgroup = MemoryCgroup(extension_name, memory_cgroup_path)
+                memory_cgroup = MemoryMetrics(extension_name, memory_cgroup_path)
                 CGroupsTelemetry.track_cgroup(memory_cgroup)
 
         except IOError as e:

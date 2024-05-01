@@ -88,11 +88,11 @@ class MetricsCounter(object):
 re_user_system_times = re.compile(r'user (\d+)\nsystem (\d+)\n')
 
 
-class CGroup(object):
+class ControllerMetrics(object):
     def __init__(self, name, cgroup_path):
         """
         Initialize _data collection for the Memory controller
-        :param: name: Name of the CGroup
+        :param: name: Name of the ControllerMetrics
         :param: cgroup_path: Path of the controller
         :return:
         """
@@ -170,9 +170,9 @@ class CGroup(object):
         raise NotImplementedError()
 
 
-class CpuCgroup(CGroup):
+class CpuMetrics(ControllerMetrics):
     def __init__(self, name, cgroup_path):
-        super(CpuCgroup, self).__init__(name, cgroup_path)
+        super(CpuMetrics, self).__init__(name, cgroup_path)
 
         self._osutil = get_osutil()
         self._previous_cgroup_cpu = None
@@ -307,9 +307,9 @@ class CpuCgroup(CGroup):
         return tracked
 
 
-class MemoryCgroup(CGroup):
+class MemoryMetrics(ControllerMetrics):
     def __init__(self, name, cgroup_path):
-        super(MemoryCgroup, self).__init__(name, cgroup_path)
+        super(MemoryMetrics, self).__init__(name, cgroup_path)
 
         self._counter_not_found_error_count = 0
 
