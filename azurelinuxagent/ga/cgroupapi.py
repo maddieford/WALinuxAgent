@@ -24,6 +24,7 @@ import uuid
 
 from azurelinuxagent.common import logger
 from azurelinuxagent.common.event import WALAEventOperation, add_event
+from azurelinuxagent.ga.cgroup import CgroupV1, CgroupV2
 from azurelinuxagent.ga.controllermetrics import CpuMetrics, MemoryMetrics
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.conf import get_agent_pid_file_path
@@ -238,6 +239,12 @@ class _SystemdCgroupApi(object):
 
         return cpu_cgroup_path, memory_cgroup_path
 
+    def get_unit_cgroup(self, unit_name):
+        """
+        Cgroup version specific. Returns a representation of the unit cgroup.
+        """
+        raise NotImplementedError()
+
     def get_process_cgroup_paths(self, process_id):
         """
         Returns a tuple with the path of the cpu and memory cgroups for the given process.
@@ -255,6 +262,12 @@ class _SystemdCgroupApi(object):
             if memory_root_path is not None and memory_cgroup_relative_path is not None else None
 
         return cpu_cgroup_path, memory_cgroup_path
+
+    def get_process_cgroup(self, process_id):
+        """
+        Cgroup version specific. Returns a representation of the process' cgroup.
+        """
+        raise NotImplementedError()
 
     def get_process_cgroup_relative_paths(self, process_id):
         """
@@ -341,6 +354,19 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         # controller is not mounted.
         return self._cgroup_mountpoints.get('cpu,cpuacct'), self._cgroup_mountpoints.get('memory')
 
+    def get_unit_cgroup(self, unit_name):
+        unit_controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        cpu_root_path, memory_root_path = self.get_controller_root_paths()
+
+        unit_cgroup_mountpoints = {}
+        if cpu_root_path is not None:
+            unit_cgroup_mountpoints['cpu,cpuacct'] = os.path.join(cpu_root_path, unit_controlgroup_path[1:])
+
+        if memory_root_path is not None:
+            unit_cgroup_mountpoints['memory'] = os.path.join(memory_root_path, unit_controlgroup_path[1:])
+
+        return CgroupV1(controller_mount_points=unit_cgroup_mountpoints)
+
     def get_process_cgroup_relative_paths(self, process_id):
         # The contents of the file are similar to
         #    # cat /proc/1218/cgroup
@@ -360,6 +386,19 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
                     cpu_path = path
 
         return cpu_path, memory_path
+
+    def get_process_cgroup(self, process_id):
+        cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_paths(process_id)
+        cpu_root_path, memory_root_path = self.get_controller_root_paths()
+
+        process_cgroup_mountpoints = {}
+        if cpu_root_path is not None and cpu_cgroup_relative_path is not None:
+            process_cgroup_mountpoints['cpu,cpuacct'] = os.path.join(cpu_root_path, cpu_cgroup_relative_path)
+
+        if memory_root_path is not None and memory_cgroup_relative_path is not None:
+            process_cgroup_mountpoints['memory'] = os.path.join(memory_root_path, memory_cgroup_relative_path)
+
+        return CgroupV1(controller_mount_points=process_cgroup_mountpoints)
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
@@ -504,6 +543,15 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
 
         return root_cpu_path, root_memory_path
 
+    def get_unit_cgroup(self, unit_name):
+        unit_controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
+
+        unified_unit_path = ""
+        if self._root_cgroup_path is not None:
+            unified_unit_path = os.path.join(self._root_cgroup_path, unit_controlgroup_path[1:])
+
+        return CgroupV2(unified_path=unified_unit_path, enabled_controllers=self._controllers_enabled_at_root)
+
     def get_process_cgroup_relative_paths(self, process_id):
         # The contents of the file are similar to
         #    # cat /proc/1218/cgroup
@@ -518,6 +566,28 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
                 cpu_path = path
 
         return cpu_path, memory_path
+
+    def get_process_cgroup_relative_path(self, process_id):
+        # The contents of the file are similar to
+        #    # cat /proc/1218/cgroup
+        #    0::/azure.slice/walinuxagent.service
+        relative_path = None
+        for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
+            match = re.match(r'0::(?P<path>\S+)', line)
+            if match is not None:
+                path = match.group('path').lstrip('/') if match.group('path') != '/' else None
+                relative_path = path
+
+        return relative_path
+
+    def get_process_cgroup(self, process_id):
+        process_relative_path = self.get_process_cgroup_relative_path(process_id)
+
+        unified_unit_path = ""
+        if self._root_cgroup_path is not None and process_relative_path is not None:
+            unified_unit_path = os.path.join(self._root_cgroup_path, process_relative_path)
+
+        return CgroupV2(unified_path=unified_unit_path, enabled_controllers=self._controllers_enabled_at_root)
 
     def start_extension_command(self, extension_name, command, cmd_name, timeout, shell, cwd, env, stdout, stderr,
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
