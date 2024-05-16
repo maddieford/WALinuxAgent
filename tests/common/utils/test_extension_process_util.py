@@ -52,7 +52,7 @@ class TestProcessUtils(AgentTestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
 
-        timed_out, ret, _ = wait_for_process_completion_or_timeout(process=process, timeout=5, cpu_cgroup=None)
+        timed_out, ret, _ = wait_for_process_completion_or_timeout(process=process, timeout=5, cpu_metrics=None)
         self.assertEqual(timed_out, False) 
         self.assertEqual(ret, 0) 
 
@@ -70,7 +70,8 @@ class TestProcessUtils(AgentTestCase):
         # We don't actually mock the kill, just wrap it so we can assert its call count
         with patch('azurelinuxagent.ga.extensionprocessutil.os.killpg', wraps=os.killpg) as patch_kill:
             with patch('time.sleep') as mock_sleep:
-                timed_out, ret, _ = wait_for_process_completion_or_timeout(process=process, timeout=timeout, cpu_cgroup=None)
+                timed_out, ret, _ = wait_for_process_completion_or_timeout(process=process, timeout=timeout,
+                                                                           cpu_metrics=None)
 
                 # We're mocking sleep to avoid prolonging the test execution time, but we still want to make sure
                 # we're "waiting" the correct amount of time before killing the process
@@ -89,7 +90,7 @@ class TestProcessUtils(AgentTestCase):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
 
-        timed_out, ret, _ = wait_for_process_completion_or_timeout(process=process, timeout=5, cpu_cgroup=None)
+        timed_out, ret, _ = wait_for_process_completion_or_timeout(process=process, timeout=5, cpu_metrics=None)
         self.assertEqual(timed_out, False) 
         self.assertEqual(ret, 2) 
 
@@ -105,12 +106,8 @@ class TestProcessUtils(AgentTestCase):
                                            stderr=stderr,
                                            preexec_fn=os.setsid)
 
-                process_output = handle_process_completion(process=process,
-                                                           command=command,
-                                                           timeout=5,
-                                                           stdout=stdout,
-                                                           stderr=stderr,
-                                                           error_code=42)
+                process_output = handle_process_completion(process=process, command=command, timeout=5, stdout=stdout,
+                                                           stderr=stderr, error_code=42)
 
         expected_output = "[stdout]\ndummy stdout\n\n\n[stderr]\ndummy stderr\n"
         self.assertEqual(process_output, expected_output) 
@@ -130,12 +127,8 @@ class TestProcessUtils(AgentTestCase):
                                                    stderr=stderr,
                                                    preexec_fn=os.setsid)
 
-                        handle_process_completion(process=process,
-                                                  command=command,
-                                                  timeout=timeout,
-                                                  stdout=stdout,
-                                                  stderr=stderr,
-                                                  error_code=42)
+                        handle_process_completion(process=process, command=command, timeout=timeout, stdout=stdout,
+                                                  stderr=stderr, error_code=42)
 
                     # We're mocking sleep to avoid prolonging the test execution time, but we still want to make sure
                     # we're "waiting" the correct amount of time before killing the process and raising an exception
@@ -167,13 +160,8 @@ class TestProcessUtils(AgentTestCase):
                                                    stderr=stderr,
                                                    preexec_fn=os.setsid)
 
-                        handle_process_completion(process=process,
-                                                  command=command,
-                                                  timeout=timeout,
-                                                  stdout=stdout,
-                                                  stderr=stderr,
-                                                  error_code=42,
-                                                  cpu_cgroup=cgroup)
+                        handle_process_completion(process=process, command=command, timeout=timeout, stdout=stdout,
+                                                  stderr=stderr, error_code=42, cpu_metrics=cgroup)
 
                     # We're mocking sleep to avoid prolonging the test execution time, but we still want to make sure
                     # we're "waiting" the correct amount of time before killing the process and raising an exception
@@ -200,11 +188,7 @@ class TestProcessUtils(AgentTestCase):
                                                stderr=stderr,
                                                preexec_fn=os.setsid)
 
-                    handle_process_completion(process=process,
-                                              command=command,
-                                              timeout=4,
-                                              stdout=stdout,
-                                              stderr=stderr,
+                    handle_process_completion(process=process, command=command, timeout=4, stdout=stdout, stderr=stderr,
                                               error_code=error_code)
 
                 self.assertEqual(context_manager.exception.code, error_code) 

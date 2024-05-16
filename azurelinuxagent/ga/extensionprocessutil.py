@@ -31,7 +31,7 @@ from azurelinuxagent.common.future import ustr
 TELEMETRY_MESSAGE_MAX_LEN = 3200
 
 
-def wait_for_process_completion_or_timeout(process, timeout, cpu_cgroup):
+def wait_for_process_completion_or_timeout(process, timeout, cpu_metrics):
     """
     Utility function that waits for the process to complete within the given time frame. This function will terminate
     the process if when the given time frame elapses.
@@ -47,7 +47,7 @@ def wait_for_process_completion_or_timeout(process, timeout, cpu_cgroup):
     throttled_time = 0
 
     if timeout == 0:
-        throttled_time = get_cpu_throttled_time(cpu_cgroup)
+        throttled_time = get_cpu_throttled_time(cpu_metrics)
         os.killpg(os.getpgid(process.pid), signal.SIGKILL)
     else:
         # process completed or forked; sleep 1 sec to give the child process (if any) a chance to start
@@ -57,7 +57,7 @@ def wait_for_process_completion_or_timeout(process, timeout, cpu_cgroup):
     return timeout == 0, return_code, throttled_time
 
 
-def handle_process_completion(process, command, timeout, stdout, stderr, error_code, cpu_cgroup=None):
+def handle_process_completion(process, command, timeout, stdout, stderr, error_code, cpu_metrics=None):
     """
     Utility function that waits for process completion and retrieves its output (stdout and stderr) if it completed
     before the timeout period. Otherwise, the process will get killed and an ExtensionError will be raised.
@@ -68,15 +68,15 @@ def handle_process_completion(process, command, timeout, stdout, stderr, error_c
     :param stdout: Must be a file since we seek on it when parsing the subprocess output
     :param stderr: Must be a file since we seek on it when parsing the subprocess outputs
     :param error_code: The error code to set if we raise an ExtensionError
-    :param cpu_cgroup: Reference the cpu cgroup name and path
+    :param cpu_metrics: Reference the cpu cgroup name and path
     :return:
     """
     # Wait for process completion or timeout
-    timed_out, return_code, throttled_time = wait_for_process_completion_or_timeout(process, timeout, cpu_cgroup)
+    timed_out, return_code, throttled_time = wait_for_process_completion_or_timeout(process, timeout, cpu_metrics)
     process_output = read_output(stdout, stderr)
 
     if timed_out:
-        if cpu_cgroup is not None: # Report CPUThrottledTime when timeout happens
+        if cpu_metrics is not None: # Report CPUThrottledTime when timeout happens
             raise ExtensionError("Timeout({0});CPUThrottledTime({1}secs): {2}\n{3}".format(timeout, throttled_time, command, process_output),
                                  code=ExtensionErrorCodes.PluginHandlerScriptTimedout)
 

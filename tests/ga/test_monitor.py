@@ -231,7 +231,7 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         ioerror.errno = 2
         patch_get_memory_usage.side_effect = ioerror
 
-        CGroupsTelemetry._tracked["/test/path"] = MemoryMetrics("cgroup_name", "/test/path")
+        CGroupsTelemetry._tracked["/test/path"] = MemoryMetrics("_cgroup_name", "/test/path")
 
         PollResourceUsage().run()
         self.assertEqual(0, patch_periodic_warn.call_count)
@@ -247,7 +247,7 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         ioerror.errno = 2
         patch_cpu_usage.side_effect = ioerror
 
-        CGroupsTelemetry._tracked["/test/path"] = CpuMetrics("cgroup_name", "/test/path")
+        CGroupsTelemetry._tracked["/test/path"] = CpuMetrics("_cgroup_name", "/test/path")
 
         PollResourceUsage().run()
         self.assertEqual(0, patch_periodic_warn.call_count)

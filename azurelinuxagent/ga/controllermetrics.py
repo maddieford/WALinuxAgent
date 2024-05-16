@@ -169,6 +169,9 @@ class ControllerMetrics(object):
         """
         raise NotImplementedError()
 
+    def get_unit_properties(self):
+        raise NotImplementedError()
+
 
 class CpuMetrics(ControllerMetrics):
     def __init__(self, name, cgroup_path):
@@ -306,6 +309,9 @@ class CpuMetrics(ControllerMetrics):
 
         return tracked
 
+    def get_unit_properties(self):
+        return ["CPUAccounting", "CPUQuotaPerSecUSec"]
+
 
 class MemoryMetrics(ControllerMetrics):
     def __init__(self, name, cgroup_path):
@@ -390,3 +396,6 @@ class MemoryMetrics(ControllerMetrics):
             MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.SWAP_MEM_USAGE, self.name,
                         self.try_swap_memory_usage(), _REPORT_EVERY_HOUR)
         ]
+
+    def get_unit_properties(self):
+        return["MemoryAccounting"]
