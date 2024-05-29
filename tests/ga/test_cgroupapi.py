@@ -368,7 +368,7 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
     def test_get_root_cgroup_path_should_return_v2_cgroup_root(self):
         with mock_cgroup_v2_environment(self.tmp_dir):
             cgroup_api = get_cgroup_api()
-            self.assertEqual(cgroup_api._get_root_cgroup_path(), '/sys/fs/cgroup')
+            self.assertEqual(cgroup_api.get_root_cgroup_path(), '/sys/fs/cgroup')
 
     def test_get_root_cgroup_path_should_only_match_systemd_mountpoint(self):
         with mock_cgroup_v2_environment(self.tmp_dir) as env:
@@ -379,7 +379,7 @@ class SystemdCgroupsApiv2TestCase(AgentTestCase):
 /custom/mountpoint/path2 none    cgroup2 rw,relatime
 '''))
             cgroup_api = get_cgroup_api()
-            self.assertEqual(cgroup_api._get_root_cgroup_path(), '/sys/fs/cgroup')
+            self.assertEqual(cgroup_api.get_root_cgroup_path(), '/sys/fs/cgroup')
 
     def test_get_unit_cgroup_paths_should_return_the_cgroup_v2_cgroup_paths(self):
         with mock_cgroup_v2_environment(self.tmp_dir):

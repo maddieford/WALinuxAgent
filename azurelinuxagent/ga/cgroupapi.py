@@ -293,19 +293,6 @@ class _SystemdCgroupApi(object):
         unit_not_found = "Unit {0} not found.".format(scope_name)
         return unit_not_found in stderr or scope_name not in stderr
 
-    @staticmethod
-    def get_processes_in_cgroup(cgroup):
-        """
-        Returns a list of all the process ids in the provided cgroup (azurelinuxagent.ga.cgroup.Cgroup).
-        """
-        cgroup_paths = cgroup.get_cgroup_paths()
-        pids = set()
-        for cgroup_path in cgroup_paths:
-            with open(os.path.join(cgroup_path, "cgroup.procs"), "r") as cgroup_procs:
-                for pid in cgroup_procs.read().split():
-                    pids.add(int(pid))
-        return pids
-
 
 class SystemdCgroupApiv1(_SystemdCgroupApi):
     """
@@ -545,11 +532,11 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
     """
     def __init__(self):
         super(SystemdCgroupApiv2, self).__init__()
-        self._root_cgroup_path = self._get_root_cgroup_path()
+        self._root_cgroup_path = self.get_root_cgroup_path()
         self._controllers_enabled_at_root = self._get_controllers_enabled_at_root(self._root_cgroup_path) if self._root_cgroup_path != "" else []
 
     @staticmethod
-    def _get_root_cgroup_path():
+    def get_root_cgroup_path():
         """
         In v2, there is a unified mount point shared by all controllers. Use findmnt to get the unified mount point.
 
@@ -682,9 +669,9 @@ class Cgroup(object):
         """
         raise NotImplementedError()
 
-    def get_cgroup_paths(self):
+    def get_processes(self):
         """
-        Cgroup version specific. Returns a list of the paths for the cgroup.
+        Cgroup version specific. Returns a list of all the process ids in the cgroup.
         """
         raise NotImplementedError()
 
@@ -747,8 +734,13 @@ class CgroupV1(Cgroup):
 
         return metrics
 
-    def get_cgroup_paths(self):
-        return list(self._cgroup_paths.values())
+    def get_processes(self):
+        pids = set()
+        for cgroup_path in self._cgroup_paths.values():
+            with open(os.path.join(cgroup_path, "cgroup.procs"), "r") as cgroup_procs:
+                for pid in cgroup_procs.read().split():
+                    pids.add(int(pid))
+        return list(pids)
 
 
 class CgroupV2(Cgroup):
@@ -784,7 +776,12 @@ class CgroupV2(Cgroup):
         # TODO - Implement controller metrics for CgroupV2
         raise NotImplementedError()
 
-    def get_cgroup_paths(self):
-        return [self._cgroup_path]
+    def get_processes(self):
+        pids = set()
+        if self._cgroup_path != "":
+            with open(os.path.join(self._cgroup_path, "cgroup.procs"), "r") as cgroup_procs:
+                for pid in cgroup_procs.read().split():
+                    pids.add(int(pid))
+        return list(pids)
 
 

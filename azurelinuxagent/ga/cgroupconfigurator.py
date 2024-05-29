@@ -108,17 +108,6 @@ _DROP_IN_FILE_MEMORY_ACCOUNTING_CONTENTS = """
 MemoryAccounting=yes
 """
 
-def log_cgroup_info(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
-    logger.info("[CGI] " + formatted_string)
-    if send_event:
-        add_event(op=op, message=formatted_string)
-
-
-def log_cgroup_warning(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
-    logger.info("[CGW] " + formatted_string)  # log as INFO for now, in the future it should be logged as WARNING
-    if send_event:
-        add_event(op=op, message=formatted_string, is_success=False, log_event=False)
-
 
 class DisableCgroups(object):
     ALL = "all"
@@ -230,8 +219,8 @@ class CGroupConfigurator(object):
                 #     self.enable()
 
                 for metric in metrics:
-                    for property in metric.get_unit_properties():
-                        log_cgroup_info('{0}: {1}'.format(property, systemd.get_unit_property(systemd.get_agent_unit_name(), property)))
+                    for prop in metric.get_unit_properties():
+                        log_cgroup_info('{0}: {1}'.format(prop, systemd.get_unit_property(systemd.get_agent_unit_name(), prop)))
                     CGroupsTelemetry.track_cgroup(metric)
                     if isinstance(metric, CpuMetrics):
                         self.__set_cpu_quota(conf.get_agent_cpu_quota())
@@ -651,8 +640,8 @@ class CGroupConfigurator(object):
             """
             unexpected = []
             agent_cgroup_proc_names = []
-            processes_in_agent_cgroup = self._cgroups_api.get_processes_in_cgroup(self._agent_cgroup)
-            if len(processes_in_agent_cgroup) == 0:
+            agent_cgroup_proccesses = self._agent_cgroup.get_processes()
+            if len(agent_cgroup_proccesses) == 0:
                 return
             try:
                 daemon = os.getppid()
@@ -661,12 +650,11 @@ class CGroupConfigurator(object):
                 agent_commands.update(shellutil.get_running_commands())
                 systemd_run_commands = set()
                 systemd_run_commands.update(self._cgroups_api.get_systemd_run_commands())
-                agent_cgroup = self._cgroups_api.get_processes_in_cgroup(self._agent_cgroup)
                 # get the running commands again in case new commands started or completed while we were fetching the processes in the cgroup;
                 agent_commands.update(shellutil.get_running_commands())
                 systemd_run_commands.update(self._cgroups_api.get_systemd_run_commands())
 
-                for process in agent_cgroup:
+                for process in agent_cgroup_proccesses:
                     agent_cgroup_proc_names.append(self.__format_process(process))
                     # Note that the agent uses systemd-run to start extensions; systemd-run belongs to the agent cgroup, though the extensions don't.
                     if process in (daemon, extension_handler) or process in systemd_run_commands:
