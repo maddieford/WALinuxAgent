@@ -211,55 +211,12 @@ class _SystemdCgroupApi(object):
         """
         with self._systemd_run_commands_lock:
             return self._systemd_run_commands[:]
-    #
-    # def get_controller_mount_points(self):
-    #     """
-    #     Cgroup version specific. Returns a tuple with the root paths for the cpu and memory controllers; the values can
-    #     be None if the corresponding controller is not mounted or enabled at the root cgroup.
-    #     """
-    #     raise NotImplementedError()
-
-    # def get_unit_cgroup_paths(self, unit_name):
-    #     """
-    #     Returns a tuple with the path of the cpu and memory cgroups for the given unit.
-    #     The values returned can be None if the controller is not mounted or enabled.
-    #     """
-    #     # Ex: ControlGroup=/azure.slice/walinuxagent.service
-    #     #     controlgroup_path[1:] = azure.slice/walinuxagent.service
-    #     controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
-    #     cpu_root_path, memory_root_path = self.get_controller_mount_points()
-    #
-    #     cpu_cgroup_path = os.path.join(cpu_root_path, controlgroup_path[1:]) \
-    #         if cpu_root_path is not None else None
-    #
-    #     memory_cgroup_path = os.path.join(memory_root_path, controlgroup_path[1:]) \
-    #         if memory_root_path is not None else None
-    #
-    #     return cpu_cgroup_path, memory_cgroup_path
 
     def get_unit_cgroup(self, unit_name, cgroup_name):
         """
         Cgroup version specific. Returns a representation of the unit cgroup.
         """
         raise NotImplementedError()
-
-    # def get_process_cgroup_paths(self, process_id):
-    #     """
-    #     Returns a tuple with the path of the cpu and memory cgroups for the given process.
-    #     The 'process_id' can be a numeric PID or the string "self" for the current process.
-    #     The values returned can be None if the controller is not mounted or enabled.
-    #     """
-    #     cpu_cgroup_relative_path, memory_cgroup_relative_path = self.get_process_cgroup_relative_controller_mount_points(process_id)
-    #
-    #     cpu_root_path, memory_root_path = self.get_controller_mount_points()
-    #
-    #     cpu_cgroup_path = os.path.join(cpu_root_path, cpu_cgroup_relative_path) \
-    #         if cpu_root_path is not None and cpu_cgroup_relative_path is not None else None
-    #
-    #     memory_cgroup_path = os.path.join(memory_root_path, memory_cgroup_relative_path) \
-    #         if memory_root_path is not None and memory_cgroup_relative_path is not None else None
-    #
-    #     return cpu_cgroup_path, memory_cgroup_path
 
     def get_cgroup_from_relative_path(self, cgroup_name, relative_path):
         """
@@ -343,13 +300,6 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
                 return False
 
         return True
-        # cpu_mountpoint = self._cgroup_mountpoints.get(CgroupV1.CPU_CONTROLLER)
-        # memory_mountpoint = self._cgroup_mountpoints.get(CgroupV1.MEMORY_CONTROLLER)
-        # if cpu_mountpoint is not None and cpu_mountpoint != os.path.join(CGROUP_FILE_SYSTEM_ROOT, CgroupV1.CPU_CONTROLLER):
-        #     return False
-        # if memory_mountpoint is not None and memory_mountpoint != os.path.join(CGROUP_FILE_SYSTEM_ROOT, CgroupV1.MEMORY_CONTROLLER):
-        #     return False
-        # return True
 
     def get_controller_mount_points(self):
         """
@@ -358,30 +308,6 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         return self._cgroup_mountpoints
 
     def get_process_cgroup_relative_controller_mount_points(self, process_id):
-        # # The contents of the file are similar to
-        # #    # cat /proc/1218/cgroup
-        # #    10:memory:/system.slice/walinuxagent.service
-        # #    3:cpu,cpuacct:/system.slice/walinuxagent.service
-        # #    etc
-        # cpu_path = None
-        # memory_path = None
-        # for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
-        #     match = re.match(r'\d+:(?P<controller>(memory|.*cpuacct.*)):(?P<path>.+)', line)
-        #     if match is not None:
-        #         controller = match.group('controller')
-        #         path = match.group('path').lstrip('/') if match.group('path') != '/' else None
-        #         if controller == 'memory':
-        #             memory_path = path
-        #         else:
-        #             cpu_path = path
-        #
-        # return cpu_path, memory_path
-
-        # The contents of the file are similar to
-        #    # cat /proc/1218/cgroup
-        #    10:memory:/system.slice/walinuxagent.service
-        #    3:cpu,cpuacct:/system.slice/walinuxagent.service
-        #    etc
         """
         The contents of the /proc/{process_id}/cgroup file are similar to
             # cat /proc/1218/cgroup
@@ -473,22 +399,6 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
                 if isinstance(metric, CpuMetrics):
                     cpu_metrics = metric
                 CGroupsTelemetry.track_cgroup(metric)
-
-            # cpu_cgroup_mountpoint, memory_cgroup_mountpoint = self.get_controller_mount_points()
-            #
-            # if cpu_cgroup_mountpoint is None:
-            #     log_cgroup_info("The CPU controller is not mounted; will not track resource usage", send_event=False)
-            # else:
-            #     cpu_cgroup_path = os.path.join(cpu_cgroup_mountpoint, cgroup_relative_path)
-            #     cpu_cgroup = CpuMetrics(extension_name, cpu_cgroup_path)
-            #     CGroupsTelemetry.track_cgroup(cpu_cgroup)
-            #
-            # if memory_cgroup_mountpoint is None:
-            #     log_cgroup_info("The Memory controller is not mounted; will not track resource usage", send_event=False)
-            # else:
-            #     memory_cgroup_path = os.path.join(memory_cgroup_mountpoint, cgroup_relative_path)
-            #     memory_cgroup = MemoryMetrics(extension_name, memory_cgroup_path)
-            #     CGroupsTelemetry.track_cgroup(memory_cgroup)
 
         except IOError as e:
             if e.errno == 2:  # 'No such file or directory'
@@ -583,9 +493,6 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         Returns the relative paths of the cgroup for the given process.
         The 'process_id' can be a numeric PID or the string "self" for the current process.
         """
-        # The contents of the file are similar to
-        #    # cat /proc/1218/cgroup
-        #    0::/azure.slice/walinuxagent.service
         relative_path = ""
         for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
             match = re.match(r'0::(?P<path>\S+)', line)

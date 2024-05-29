@@ -81,7 +81,7 @@ class CGroupsTelemetry(object):
                 try:
                     metrics.extend(cgroup.get_tracked_metrics(track_throttled_time=CGroupsTelemetry._track_throttled_time))
                 except Exception as e:
-                    # There can be scenarios when the ControllerMetrics has been deleted by the time we are fetching the values
+                    # There can be scenarios when the CGroup has been deleted by the time we are fetching the values
                     # from it. This would raise IOError with file entry not found (ERRNO: 2). We do not want to log
                     # every occurrences of such case as it would be very verbose. We do want to log all the other
                     # exceptions which could occur, which is why we do a periodic log for all the other errors.

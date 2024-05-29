@@ -130,10 +130,7 @@ class CGroupConfigurator(object):
             self._agent_cgroups_enabled = False
             self._extensions_cgroups_enabled = False
             self._cgroups_api = None
-            # self._agent_cpu_cgroup_path = None
-            # self._agent_memory_cgroup_path = None
             self._agent_cgroup = None
-            # self._agent_memory_cgroup = None
             self._agent_memory_metrics = None
             self._check_cgroups_lock = threading.RLock()  # Protect the check_cgroups which is called from Monitor thread and main loop.
 
@@ -191,11 +188,6 @@ class CGroupConfigurator(object):
 
                 self.__setup_azure_slice()
 
-                # cpu_controller_root, memory_controller_root = self.__get_cgroup_controller_roots()
-                # self._agent_cpu_cgroup_path, self._agent_memory_cgroup_path = self.__get_agent_cgroup_paths(agent_slice,
-                #                                                                                        cpu_controller_root,
-                #                                                                                        memory_controller_root)
-
                 # Log mount points/root paths for controllers
                 self._cgroups_api.log_root_paths()
 
@@ -215,9 +207,6 @@ class CGroupConfigurator(object):
                 if len(metrics) > 0:
                     self.enable()
 
-                # if self._agent_cpu_cgroup_path is not None or self._agent_memory_cgroup_path is not None:
-                #     self.enable()
-
                 for metric in metrics:
                     for prop in metric.get_unit_properties():
                         log_cgroup_info('{0}: {1}'.format(prop, systemd.get_unit_property(systemd.get_agent_unit_name(), prop)))
@@ -226,16 +215,6 @@ class CGroupConfigurator(object):
                         self.__set_cpu_quota(conf.get_agent_cpu_quota())
                     elif isinstance(metric, MemoryMetrics):
                         self._agent_memory_metrics = metric
-
-                # if self._agent_cpu_cgroup_path is not None:
-                #     log_cgroup_info("Agent CPU cgroup: {0}".format(self._agent_cpu_cgroup_path))
-                #     self.__set_cpu_quota(conf.get_agent_cpu_quota())
-                #     CGroupsTelemetry.track_cgroup(CpuMetrics(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
-                #
-                # if self._agent_memory_cgroup_path is not None:
-                #     log_cgroup_info("Agent Memory cgroup: {0}".format(self._agent_memory_cgroup_path))
-                #     self._agent_memory_cgroup = MemoryMetrics(AGENT_NAME_TELEMETRY, self._agent_memory_cgroup_path)
-                #     CGroupsTelemetry.track_cgroup(self._agent_memory_cgroup)
 
             except Exception as exception:
                 log_cgroup_warning("Error initializing cgroups: {0}".format(ustr(exception)))
@@ -253,21 +232,6 @@ class CGroupConfigurator(object):
                 log_cgroup_warning("The daemon's PID was added to a legacy cgroup; will not monitor resource usage.")
                 return False
             return True
-
-        # def __get_cgroup_controller_roots(self):
-        #     cpu_controller_root, memory_controller_root = self._cgroups_api.get_controller_mount_points()
-        #
-        #     if cpu_controller_root is not None:
-        #         log_cgroup_info("The CPU cgroup controller root path is {0}".format(cpu_controller_root), send_event=False)
-        #     else:
-        #         log_cgroup_warning("The CPU cgroup controller is not mounted or enabled")
-        #
-        #     if memory_controller_root is not None:
-        #         log_cgroup_info("The memory cgroup controller root path is {0}".format(memory_controller_root), send_event=False)
-        #     else:
-        #         log_cgroup_warning("The memory cgroup controller is not mounted or enabled")
-        #
-        #     return cpu_controller_root, memory_controller_root
 
         @staticmethod
         def __setup_azure_slice():
@@ -441,47 +405,6 @@ class CGroupConfigurator(object):
                         return True
             return False
 
-        # def __get_agent_cgroup_paths(self, agent_slice, cpu_controller_root, memory_controller_root):
-        #     agent_unit_name = systemd.get_agent_unit_name()
-        #
-        #     expected_relative_path = os.path.join(agent_slice, agent_unit_name)
-        #     cpu_cgroup_relative_path, memory_cgroup_relative_path = self._cgroups_api.get_process_cgroup_relative_controller_mount_points(
-        #         "self")
-        #
-        #     if cpu_cgroup_relative_path is None:
-        #         log_cgroup_warning("The agent's process is not within a CPU cgroup")
-        #     else:
-        #         if cpu_cgroup_relative_path == expected_relative_path:
-        #             log_cgroup_info('CPUAccounting: {0}'.format(systemd.get_unit_property(agent_unit_name, "CPUAccounting")))
-        #             log_cgroup_info('CPUQuota: {0}'.format(systemd.get_unit_property(agent_unit_name, "CPUQuotaPerSecUSec")))
-        #         else:
-        #             log_cgroup_warning(
-        #                 "The Agent is not in the expected CPU cgroup; will not enable monitoring. Cgroup:[{0}] Expected:[{1}]".format(cpu_cgroup_relative_path, expected_relative_path))
-        #             cpu_cgroup_relative_path = None  # Set the path to None to prevent monitoring
-        #
-        #     if memory_cgroup_relative_path is None:
-        #         log_cgroup_warning("The agent's process is not within a memory cgroup")
-        #     else:
-        #         if memory_cgroup_relative_path == expected_relative_path:
-        #             memory_accounting = systemd.get_unit_property(agent_unit_name, "MemoryAccounting")
-        #             log_cgroup_info('MemoryAccounting: {0}'.format(memory_accounting))
-        #         else:
-        #             log_cgroup_warning(
-        #                 "The Agent is not in the expected memory cgroup; will not enable monitoring. ControllerMetrics:[{0}] Expected:[{1}]".format(memory_cgroup_relative_path, expected_relative_path))
-        #             memory_cgroup_relative_path = None  # Set the path to None to prevent monitoring
-        #
-        #     if cpu_controller_root is not None and cpu_cgroup_relative_path is not None:
-        #         agent_cpu_cgroup_path = os.path.join(cpu_controller_root, cpu_cgroup_relative_path)
-        #     else:
-        #         agent_cpu_cgroup_path = None
-        #
-        #     if memory_controller_root is not None and memory_cgroup_relative_path is not None:
-        #         agent_memory_cgroup_path = os.path.join(memory_controller_root, memory_cgroup_relative_path)
-        #     else:
-        #         agent_memory_cgroup_path = None
-        #
-        #     return agent_cpu_cgroup_path, agent_memory_cgroup_path
-
         def supported(self):
             return self._cgroups_supported
 
@@ -521,7 +444,6 @@ class CGroupConfigurator(object):
             elif disable_cgroups == DisableCgroups.AGENT:  # disable agent
                 self._agent_cgroups_enabled = False
                 self.__reset_agent_cpu_quota()
-                # CGroupsTelemetry.stop_tracking(CpuMetrics(AGENT_NAME_TELEMETRY, self._agent_cpu_cgroup_path))
                 cpu_metrics = self._agent_cgroup.get_controller_metrics(controller=self._agent_cgroup.CPU_CONTROLLER)
                 if len(cpu_metrics) > 0:
                     CGroupsTelemetry.stop_tracking(cpu_metrics[0])
@@ -810,7 +732,6 @@ class CGroupConfigurator(object):
             TODO: Start tracking Memory Cgroups
             """
             try:
-                # cpu_cgroup_path, memory_cgroup_path = self._cgroups_api.get_unit_cgroup_paths(unit_name)
                 cgroup = self._cgroups_api.get_unit_cgroup(unit_name, unit_name)
                 # Log if any controllers are not enabled/mounted for the cgroup
                 cgroup.check_all_supported_controllers_enabled()
@@ -818,17 +739,6 @@ class CGroupConfigurator(object):
 
                 for metric in metrics:
                     CGroupsTelemetry.track_cgroup(metric)
-
-
-                # if cpu_cgroup_path is None:
-                #     log_cgroup_info("The CPU controller is not mounted or enabled; will not track resource usage", send_event=False)
-                # else:
-                #     CGroupsTelemetry.track_cgroup(CpuMetrics(unit_name, cpu_cgroup_path))
-                #
-                # if memory_cgroup_path is None:
-                #     log_cgroup_info("The Memory controller is not mounted or enabled; will not track resource usage", send_event=False)
-                # else:
-                #     CGroupsTelemetry.track_cgroup(MemoryMetrics(unit_name, memory_cgroup_path))
 
             except Exception as exception:
                 log_cgroup_info("Failed to start tracking resource usage for the extension: {0}".format(ustr(exception)), send_event=False)
@@ -838,18 +748,11 @@ class CGroupConfigurator(object):
             TODO: remove Memory cgroups from tracked list.
             """
             try:
-                # cpu_cgroup_path, memory_cgroup_path = self._cgroups_api.get_unit_cgroup_paths(unit_name)
                 cgroup = self._cgroups_api.get_unit_cgroup(unit_name, unit_name)
                 metrics = cgroup.get_controller_metrics()
 
                 for metric in metrics:
                     CGroupsTelemetry.stop_tracking(metric)
-
-                # if cpu_cgroup_path is not None:
-                #     CGroupsTelemetry.stop_tracking(CpuMetrics(unit_name, cpu_cgroup_path))
-                #
-                # if memory_cgroup_path is not None:
-                #     CGroupsTelemetry.stop_tracking(MemoryMetrics(unit_name, memory_cgroup_path))
 
             except Exception as exception:
                 log_cgroup_info("Failed to stop tracking resource usage for the extension service: {0}".format(ustr(exception)), send_event=False)
@@ -862,21 +765,10 @@ class CGroupConfigurator(object):
                 extension_slice_name = CGroupUtil.get_extension_slice_name(extension_name)
                 cgroup_relative_path = os.path.join(_AZURE_VMEXTENSIONS_SLICE, extension_slice_name)
 
-                # cpu_root_path, memory_root_path = self._cgroups_api.get_controller_mount_points()
-                # cpu_cgroup_path = os.path.join(cpu_root_path, cgroup_relative_path)
-                # memory_cgroup_path = os.path.join(memory_root_path, cgroup_relative_path)
-
                 cgroup = self._cgroups_api.get_cgroup_from_relative_path(cgroup_name=extension_name, relative_path=cgroup_relative_path)
                 metrics = cgroup.get_controller_metrics()
                 for metric in metrics:
                     CGroupsTelemetry.stop_tracking(metric)
-
-
-                # if cpu_cgroup_path is not None:
-                #     CGroupsTelemetry.stop_tracking(CpuMetrics(extension_name, cpu_cgroup_path))
-                #
-                # if memory_cgroup_path is not None:
-                #     CGroupsTelemetry.stop_tracking(MemoryMetrics(extension_name, memory_cgroup_path))
 
             except Exception as exception:
                 log_cgroup_info("Failed to stop tracking resource usage for the extension service: {0}".format(ustr(exception)), send_event=False)
@@ -909,8 +801,7 @@ class CGroupConfigurator(object):
 
             # subprocess-popen-preexec-fn<W1509> Disabled: code is not multi-threaded
             process = subprocess.Popen(command, shell=shell, cwd=cwd, env=env, stdout=stdout, stderr=stderr, preexec_fn=os.setsid)  # pylint: disable=W1509
-            return handle_process_completion(process=process, command=command, timeout=timeout, stdout=stdout,
-                                             stderr=stderr, error_code=error_code)
+            return handle_process_completion(process=process, command=command, timeout=timeout, stdout=stdout, stderr=stderr, error_code=error_code)
 
         def __reset_extension_cpu_quota(self, extension_name):
             """
