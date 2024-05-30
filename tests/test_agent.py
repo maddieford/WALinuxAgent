@@ -249,7 +249,7 @@ class TestAgent(AgentTestCase):
             mock_log_collector.run = Mock()
 
             # Mock cgroup so process is in the log collector slice
-            def mock_cgroup(*args, **kwargs):
+            def mock_cgroup(*args, **kwargs):   # pylint: disable=W0613
                 relative_path = "{0}/{1}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE, logcollector.CGROUPS_UNIT)
                 return CgroupV1(
                     cgroup_name=AGENT_LOG_COLLECTOR,
@@ -306,7 +306,7 @@ class TestAgent(AgentTestCase):
             mock_log_collector.run = Mock()
 
             # Mock cgroup so process is in incorrect slice
-            def mock_cgroup(*args, **kwargs):
+            def mock_cgroup(*args, **kwargs):   # pylint: disable=W0613
                 relative_path = "NOT_THE_CORRECT_PATH"
                 return CgroupV1(
                     cgroup_name=AGENT_LOG_COLLECTOR,
@@ -365,7 +365,7 @@ class TestAgent(AgentTestCase):
             mock_log_collector.run = Mock()
 
             # Mock cgroup so process is in the log collector slice and cpu is not mounted
-            def mock_cgroup(*args, **kwargs):
+            def mock_cgroup(*args, **kwargs):   # pylint: disable=W0613
                 relative_path = "{0}/{1}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE, logcollector.CGROUPS_UNIT)
                 return CgroupV1(
                     cgroup_name=AGENT_LOG_COLLECTOR,
