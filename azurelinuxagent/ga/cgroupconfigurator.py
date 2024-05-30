@@ -188,7 +188,7 @@ class CGroupConfigurator(object):
 
                 self.__setup_azure_slice()
 
-                # Log mount points/root paths for controllers
+                # Log mount points/root paths for cgroup controllers
                 self._cgroups_api.log_root_paths()
 
                 # Get agent cgroup
@@ -200,8 +200,7 @@ class CGroupConfigurator(object):
                     return
 
                 # Get metrics to track
-                metrics = self._agent_cgroup.get_controller_metrics(
-                    expected_relative_path=os.path.join(agent_slice, systemd.get_agent_unit_name()))
+                metrics = self._agent_cgroup.get_controller_metrics(expected_relative_path=os.path.join(agent_slice, systemd.get_agent_unit_name()))
                 if len(metrics) > 0:
                     self.enable()
 
@@ -560,9 +559,7 @@ class CGroupConfigurator(object):
             """
             unexpected = []
             agent_cgroup_proc_names = []
-            agent_cgroup_proccesses = self._agent_cgroup.get_processes()
-            if len(agent_cgroup_proccesses) == 0:
-                return
+
             try:
                 daemon = os.getppid()
                 extension_handler = os.getpid()
@@ -570,6 +567,7 @@ class CGroupConfigurator(object):
                 agent_commands.update(shellutil.get_running_commands())
                 systemd_run_commands = set()
                 systemd_run_commands.update(self._cgroups_api.get_systemd_run_commands())
+                agent_cgroup_proccesses = self._agent_cgroup.get_processes()
                 # get the running commands again in case new commands started or completed while we were fetching the processes in the cgroup;
                 agent_commands.update(shellutil.get_running_commands())
                 systemd_run_commands.update(self._cgroups_api.get_systemd_run_commands())
@@ -698,7 +696,6 @@ class CGroupConfigurator(object):
                         raise CGroupsException("The agent has been throttled for {0} seconds".format(metric.value))
 
         def check_agent_memory_usage(self):
-            # if self.enabled() and self._agent_memory_cgroup:
             if self.enabled() and self._agent_memory_metrics is not None:
                 metrics = self._agent_memory_metrics.get_tracked_metrics()
                 current_usage = 0
@@ -726,9 +723,6 @@ class CGroupConfigurator(object):
             return 0
 
         def start_tracking_unit_cgroups(self, unit_name):
-            """
-            TODO: Start tracking Memory Cgroups
-            """
             try:
                 cgroup = self._cgroups_api.get_unit_cgroup(unit_name, unit_name)
                 metrics = cgroup.get_controller_metrics()
@@ -740,9 +734,6 @@ class CGroupConfigurator(object):
                 log_cgroup_info("Failed to start tracking resource usage for the extension: {0}".format(ustr(exception)), send_event=False)
 
         def stop_tracking_unit_cgroups(self, unit_name):
-            """
-            TODO: remove Memory cgroups from tracked list.
-            """
             try:
                 cgroup = self._cgroups_api.get_unit_cgroup(unit_name, unit_name)
                 metrics = cgroup.get_controller_metrics()
@@ -754,9 +745,6 @@ class CGroupConfigurator(object):
                 log_cgroup_info("Failed to stop tracking resource usage for the extension service: {0}".format(ustr(exception)), send_event=False)
 
         def stop_tracking_extension_cgroups(self, extension_name):
-            """
-            TODO: remove extension Memory cgroups from tracked list
-            """
             try:
                 extension_slice_name = CGroupUtil.get_extension_slice_name(extension_name)
                 cgroup_relative_path = os.path.join(_AZURE_VMEXTENSIONS_SLICE, extension_slice_name)
