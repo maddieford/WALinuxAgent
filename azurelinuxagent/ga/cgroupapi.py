@@ -579,7 +579,7 @@ class Cgroup(object):
         """
         raise NotImplementedError()
 
-    def get_controller_metrics(self, expected_relative_path=None, controller=None):
+    def get_controller_metrics(self, expected_relative_path=None):
         """
         Cgroup version specific. Returns a list of the metrics for the agent supported controllers which are
         mounted/enabled for the cgroup.
@@ -622,11 +622,10 @@ class CgroupV1(Cgroup):
 
         return in_expected_slice
 
-    def get_controller_metrics(self, expected_relative_path=None, controller=None):
+    def get_controller_metrics(self, expected_relative_path=None):
         metrics = []
-        required_controllers = [controller] if controller is not None else self.get_supported_controllers()
 
-        for controller in required_controllers:
+        for controller in self.get_supported_controllers():
             controller_metrics = None
             controller_path = self._controller_paths.get(controller)
 
@@ -690,7 +689,7 @@ class CgroupV2(Cgroup):
 
         return True
 
-    def get_controller_metrics(self, expected_relative_path=None, controller=None):
+    def get_controller_metrics(self, expected_relative_path=None):
         # TODO - Implement controller metrics for cgroup v2
         raise NotImplementedError()
 

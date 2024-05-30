@@ -200,7 +200,8 @@ class CGroupConfigurator(object):
                     return
 
                 # Get metrics to track
-                metrics = self._agent_cgroup.get_controller_metrics(expected_relative_path=os.path.join(agent_slice, systemd.get_agent_unit_name()))
+                metrics = self._agent_cgroup.get_controller_metrics(
+                    expected_relative_path=os.path.join(agent_slice, systemd.get_agent_unit_name()))
                 if len(metrics) > 0:
                     self.enable()
 
@@ -441,9 +442,9 @@ class CGroupConfigurator(object):
             elif disable_cgroups == DisableCgroups.AGENT:  # disable agent
                 self._agent_cgroups_enabled = False
                 self.__reset_agent_cpu_quota()
-                cpu_metrics = self._agent_cgroup.get_controller_metrics(controller=self._agent_cgroup.CPU_CONTROLLER)
-                if len(cpu_metrics) > 0:
-                    CGroupsTelemetry.stop_tracking(cpu_metrics[0])
+                agent_metrics = self._agent_cgroup.get_controller_metrics()
+                for metric in agent_metrics:
+                    CGroupsTelemetry.stop_tracking(metric)
 
             log_cgroup_warning("Disabling resource usage monitoring. Reason: {0}".format(reason), op=WALAEventOperation.CGroupsDisabled)
 
