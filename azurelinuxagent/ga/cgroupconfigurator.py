@@ -443,7 +443,9 @@ class CGroupConfigurator(object):
                 self.__reset_agent_cpu_quota()
                 agent_metrics = self._agent_cgroup.get_controller_metrics()
                 for metric in agent_metrics:
-                    CGroupsTelemetry.stop_tracking(metric)
+                    if isinstance(metric, CpuMetrics):
+                        CGroupsTelemetry.stop_tracking(metric)
+                        break
 
             log_cgroup_warning("Disabling resource usage monitoring. Reason: {0}".format(reason), op=WALAEventOperation.CGroupsDisabled)
 
