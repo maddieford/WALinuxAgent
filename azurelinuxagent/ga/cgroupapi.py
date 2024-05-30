@@ -190,8 +190,7 @@ def get_cgroup_api():
         # default ('/sys/fs/cgroup'). The agent no longer supports this scenario. If any agent supported controller is
         # mounted in a location other than the systemd default, raise Exception.
         if not cgroup_api_v1.are_mountpoints_systemd_created():
-            raise InvalidCgroupMountpointException("Expected cgroup controllers to be mounted at '{0}', but at least one is not. v1 mount points: \n{1}".format(CGROUP_FILE_SYSTEM_ROOT, json.dumps(
-                cgroup_api_v1.get_controller_mountpoints())))
+            raise InvalidCgroupMountpointException("Expected cgroup controllers to be mounted at '{0}', but at least one is not. v1 mount points: \n{1}".format(CGROUP_FILE_SYSTEM_ROOT, json.dumps(cgroup_api_v1.get_controller_mountpoints())))
         log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
         return cgroup_api_v1
 
@@ -305,8 +304,8 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
 
     def are_mountpoints_systemd_created(self):
         """
-        Systemd mounts each controller at '/sys/fs/cgroup/<controller>'. Returns True if all controllers supported by
-        the agent have mountpoints which match this pattern, False otherwise.
+        Systemd mounts each controller at '/sys/fs/cgroup/<controller>'. Returns True if all mounted controllers which
+        are supported by the agent have mountpoints which match this pattern, False otherwise.
 
         The agent does not support cgroup usage if the default root systemd mountpoint (/sys/fs/cgroup) is not used.
         This method is used to check if any users are using non-systemd mountpoints. If they are, the agent drop-in
@@ -320,7 +319,8 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
     @staticmethod
     def _get_process_relative_controller_paths(process_id):
         """
-        Returns the relative paths of the cgroup for the given process as a dict of controller-path mappings.
+        Returns the relative paths of the cgroup for the given process as a dict of controller-path mappings. The result
+        only includes controllers which are supported.
         The contents of the /proc/{process_id}/cgroup file are similar to
             # cat /proc/1218/cgroup
             10:memory:/system.slice/walinuxagent.service
@@ -491,7 +491,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         Returns a list of the controllers enabled at the root cgroup. The cgroup.subtree_control file at the root shows
         a space separated list of the controllers which are enabled to control resource distribution from the root
         cgroup to its children. If a controller is listed here, then that controller is available to enable in children
-        cgroups. This method filters the list to only include controllers which are supported by the agent.
+        cgroups. Returns only the enabled controllers which are supported by the agent.
 
                 $ cat /sys/fs/cgroup/cgroup.subtree_control
                 cpuset cpu io memory hugetlb pids rdma misc
@@ -540,7 +540,7 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         relative_path = self._get_process_relative_cgroup_path(process_id)
         cgroup_path = ""
 
-        if self._root_cgroup_path != "" and relative_path != "":
+        if self._root_cgroup_path != "":
             cgroup_path = os.path.join(self._root_cgroup_path, relative_path)
 
         return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path, cgroup_path=cgroup_path, enabled_controllers=self._controllers_enabled_at_root)
@@ -585,7 +585,6 @@ class Cgroup(object):
         mounted/enabled for the cgroup.
 
         :param expected_relative_path: The expected relative path of the cgroup. If provided, only metrics for controllers at this expected path will be returned.
-        :param controller: The controller to return metrics for. If provided, only metrics for the provided controller will be returned.
         """
         raise NotImplementedError()
 
