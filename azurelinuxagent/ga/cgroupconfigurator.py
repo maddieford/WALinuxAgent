@@ -194,9 +194,6 @@ class CGroupConfigurator(object):
                 # Get agent cgroup
                 self._agent_cgroup = self._cgroups_api.get_process_cgroup(process_id="self", cgroup_name=AGENT_NAME_TELEMETRY)
 
-                # Log if any agent supported controllers not mounted/enabled
-                self._agent_cgroup.check_all_supported_controllers_enabled()
-
                 if conf.get_cgroup_disable_on_process_check_failure() and self._check_fails_if_processes_found_in_agent_cgroup_before_enable(agent_slice):
                     reason = "Found unexpected processes in the agent cgroup before agent enable cgroups."
                     self.disable(reason, DisableCgroups.ALL)
@@ -733,8 +730,6 @@ class CGroupConfigurator(object):
             """
             try:
                 cgroup = self._cgroups_api.get_unit_cgroup(unit_name, unit_name)
-                # Log if any controllers are not enabled/mounted for the cgroup
-                cgroup.check_all_supported_controllers_enabled()
                 metrics = cgroup.get_controller_metrics()
 
                 for metric in metrics:
@@ -765,7 +760,8 @@ class CGroupConfigurator(object):
                 extension_slice_name = CGroupUtil.get_extension_slice_name(extension_name)
                 cgroup_relative_path = os.path.join(_AZURE_VMEXTENSIONS_SLICE, extension_slice_name)
 
-                cgroup = self._cgroups_api.get_cgroup_from_relative_path(cgroup_name=extension_name, relative_path=cgroup_relative_path)
+                cgroup = self._cgroups_api.get_cgroup_from_relative_path(relative_path=cgroup_relative_path,
+                                                                         cgroup_name=extension_name)
                 metrics = cgroup.get_controller_metrics()
                 for metric in metrics:
                     CGroupsTelemetry.stop_tracking(metric)

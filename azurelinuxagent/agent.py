@@ -208,7 +208,7 @@ class Agent(object):
 
         # Check the cgroups unit
         log_collector_monitor = None
-        log_collector_cgroup = None
+        tracked_metrics = []
         if CollectLogsHandler.is_enabled_monitor_cgroups_check():
             try:
                 cgroup_api = get_cgroup_api()
@@ -220,8 +220,9 @@ class Agent(object):
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
             log_collector_cgroup = cgroup_api.get_process_cgroup(process_id="self", cgroup_name=AGENT_LOG_COLLECTOR)
+            tracked_metrics = log_collector_cgroup.get_controller_metrics()
 
-            if not log_collector_cgroup.check_all_supported_controllers_enabled():
+            if len(tracked_metrics) != len(log_collector_cgroup.get_supported_controllers()):
                 log_cgroup_warning("At least one required controller is missing. The following controllers are required for the log collector to run: {0}".format(log_collector_cgroup.get_supported_controllers()))
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
@@ -231,10 +232,9 @@ class Agent(object):
 
         try:
             log_collector = LogCollector(is_full_mode)
-            # Running log collector resource(CPU, Memory) monitoring only if agent starts the log collector.
+            # Running log collector resource monitoring only if agent starts the log collector.
             # If Log collector start by any other means, then it will not be monitored.
             if CollectLogsHandler.is_enabled_monitor_cgroups_check():
-                tracked_metrics = log_collector_cgroup.get_controller_metrics()
                 for metric in tracked_metrics:
                     if isinstance(metric, CpuMetrics):
                         metric.initialize_cpu_usage()

@@ -172,6 +172,6 @@ def get_unit_cgroup_path(unit_name):
     unit_controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
 
     if isinstance(cgroups_api, SystemdCgroupApiv1):
-        return os.path.join(cgroups_api.get_controller_mount_points().get('cpu,cpuacct'), unit_controlgroup_path[1:])
+        return os.path.join(cgroups_api.get_controller_mountpoints().get('cpu,cpuacct'), unit_controlgroup_path[1:])
     else:
-        return os.path.join(cgroups_api.get_root_cgroup_path(), unit_controlgroup_path)
+        return os.path.join(cgroups_api._get_root_cgroup_path(), unit_controlgroup_path)

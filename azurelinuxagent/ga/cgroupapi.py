@@ -190,7 +190,8 @@ def get_cgroup_api():
         # default ('/sys/fs/cgroup'). The agent no longer supports this scenario. If any agent supported controller is
         # mounted in a location other than the systemd default, raise Exception.
         if not cgroup_api_v1.are_mountpoints_systemd_created():
-            raise InvalidCgroupMountpointException("Expected cgroup controllers to be mounted at '{0}', but at least one is not. v1 mount points: \n{1}".format(CGROUP_FILE_SYSTEM_ROOT, json.dumps(cgroup_api_v1.get_controller_mount_points())))
+            raise InvalidCgroupMountpointException("Expected cgroup controllers to be mounted at '{0}', but at least one is not. v1 mount points: \n{1}".format(CGROUP_FILE_SYSTEM_ROOT, json.dumps(
+                cgroup_api_v1.get_controller_mountpoints())))
         log_cgroup_info("Using cgroup v1 for resource enforcement and monitoring")
         return cgroup_api_v1
 
@@ -215,18 +216,33 @@ class _SystemdCgroupApi(object):
     def get_unit_cgroup(self, unit_name, cgroup_name):
         """
         Cgroup version specific. Returns a representation of the unit cgroup.
+
+        :param unit_name: The unit to return the cgroup of.
+        :param cgroup_name: A name to represent the cgroup. Used for logging/tracking purposes.
         """
         raise NotImplementedError()
 
-    def get_cgroup_from_relative_path(self, cgroup_name, relative_path):
+    def get_cgroup_from_relative_path(self, relative_path, cgroup_name):
         """
         Cgroup version specific. Returns a representation of the cgroup at the provided relative path.
+
+        :param relative_path: The relative path to return the cgroup of.
+        :param cgroup_name: A name to represent the cgroup. Used for logging/tracking purposes.
         """
         raise NotImplementedError()
 
     def get_process_cgroup(self, process_id, cgroup_name):
         """
-        Cgroup version specific. Returns a representation of a process' cgroup.
+        Cgroup version specific. Returns a representation of the process' cgroup.
+
+        :param process_id: A numeric PID to return the cgroup of, or the string "self" to return the cgroup of the current process.
+        :param cgroup_name: A name to represent the cgroup. Used for logging/tracking purposes.
+        """
+        raise NotImplementedError()
+
+    def log_root_paths(self):
+        """
+        Cgroup version specific. Logs the root paths of the cgroup filesystem/controllers.
         """
         raise NotImplementedError()
 
@@ -234,12 +250,6 @@ class _SystemdCgroupApi(object):
                                 error_code=ExtensionErrorCodes.PluginUnknownFailure):
         """
         Cgroup version specific. Starts extension command.
-        """
-        raise NotImplementedError()
-
-    def log_root_paths(self):
-        """
-        Cgroup version specific. Logs the root paths of the controllers.
         """
         raise NotImplementedError()
 
@@ -259,7 +269,8 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         super(SystemdCgroupApiv1, self).__init__()
         self._cgroup_mountpoints = self._get_controller_mountpoints()
 
-    def _get_controller_mountpoints(self):
+    @staticmethod
+    def _get_controller_mountpoints():
         """
         In v1, each controller is mounted at a different path. Use findmnt to get each path.
 
@@ -286,6 +297,12 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
                     mount_points[controller] = path
         return mount_points
 
+    def get_controller_mountpoints(self):
+        """
+        Returns a dictionary of controller-mountpoint mappings.
+        """
+        return self._cgroup_mountpoints
+
     def are_mountpoints_systemd_created(self):
         """
         Systemd mounts each controller at '/sys/fs/cgroup/<controller>'. Returns True if all controllers supported by
@@ -298,25 +315,19 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         for controller, mount_point in self._cgroup_mountpoints.items():
             if mount_point != os.path.join(CGROUP_FILE_SYSTEM_ROOT, controller):
                 return False
-
         return True
 
-    def get_controller_mount_points(self):
+    @staticmethod
+    def _get_process_relative_controller_paths(process_id):
         """
-        Returns a dictionary of controller-mount_point mappings
-        """
-        return self._cgroup_mountpoints
-
-    def get_process_cgroup_relative_controller_mount_points(self, process_id):
-        """
+        Returns the relative paths of the cgroup for the given process as a dict of controller-path mappings.
         The contents of the /proc/{process_id}/cgroup file are similar to
             # cat /proc/1218/cgroup
             10:memory:/system.slice/walinuxagent.service
             3:cpu,cpuacct:/system.slice/walinuxagent.service
             etc
 
-        Returns the relative paths of the cgroup for the given process as a dict of controller-path mappings.
-        The 'process_id' can be a numeric PID or the string "self" for the current process.
+        :param process_id: A numeric PID to return the relative paths of, or the string "self" to return the relative paths of the current process.
         """
         conroller_relative_paths = {}
         for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
@@ -330,32 +341,34 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         return conroller_relative_paths
 
     def get_unit_cgroup(self, unit_name, cgroup_name):
-        unit_controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        unit_cgroup_relative_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        unit_controller_paths = {}
 
-        unit_cgroup_paths = {}
-        for controller, mount_point in self._cgroup_mountpoints.items():
-            unit_cgroup_paths[controller] = os.path.join(mount_point, unit_controlgroup_path[1:])
+        for controller, mountpoint in self._cgroup_mountpoints.items():
+            unit_controller_paths[controller] = os.path.join(mountpoint, unit_cgroup_relative_path[1:])
 
-        return CgroupV1(cgroup_name=cgroup_name, mount_points=self._cgroup_mountpoints, cgroup_paths=unit_cgroup_paths)
+        return CgroupV1(cgroup_name=cgroup_name, controller_mountpoints=self._cgroup_mountpoints,
+                        controller_paths=unit_controller_paths)
 
-    def get_cgroup_from_relative_path(self, cgroup_name, relative_path):
-        cgroup_paths = {}
-        for controller, mount_point in self._cgroup_mountpoints.items():
-            cgroup_paths[controller] = os.path.join(mount_point, relative_path)
+    def get_cgroup_from_relative_path(self, relative_path, cgroup_name):
+        controller_paths = {}
+        for controller, mountpoint in self._cgroup_mountpoints.items():
+            controller_paths[controller] = os.path.join(mountpoint, relative_path)
 
-        return CgroupV1(cgroup_name=cgroup_name, mount_points=self._cgroup_mountpoints, cgroup_paths=cgroup_paths)
+        return CgroupV1(cgroup_name=cgroup_name, controller_mountpoints=self._cgroup_mountpoints,
+                        controller_paths=controller_paths)
 
     def get_process_cgroup(self, process_id, cgroup_name):
-        controller_relative_mount_points = self.get_process_cgroup_relative_controller_mount_points(process_id)
+        relative_controller_paths = self._get_process_relative_controller_paths(process_id)
+        process_controller_paths = {}
 
-        process_cgroup_mount_points = {}
-        for controller, mount_point in self._cgroup_mountpoints.items():
-            controller_relative_path = controller_relative_mount_points.get(controller)
-            if controller_relative_path is not None:
-                process_cgroup_mount_points[controller] = os.path.join(mount_point, controller_relative_path)
+        for controller, mountpoint in self._cgroup_mountpoints.items():
+            relative_controller_path = relative_controller_paths.get(controller)
+            if relative_controller_path is not None:
+                process_controller_paths[controller] = os.path.join(mountpoint, relative_controller_path)
 
-        return CgroupV1(cgroup_name=cgroup_name, mount_points=self._cgroup_mountpoints,
-                        cgroup_paths=process_cgroup_mount_points)
+        return CgroupV1(cgroup_name=cgroup_name, controller_mountpoints=self._cgroup_mountpoints,
+                        controller_paths=process_controller_paths)
 
     def log_root_paths(self):
         for controller in CgroupV1.get_supported_controllers():
@@ -392,8 +405,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         cpu_metrics = None
         try:
             cgroup_relative_path = os.path.join('azure.slice/azure-vmextensions.slice', extension_slice_name)
-            cgroup = self.get_cgroup_from_relative_path(extension_name, cgroup_relative_path)
-            cgroup.check_all_supported_controllers_enabled()
+            cgroup = self.get_cgroup_from_relative_path(cgroup_relative_path, extension_name)
             metrics = cgroup.get_controller_metrics()
             for metric in metrics:
                 if isinstance(metric, CpuMetrics):
@@ -442,11 +454,11 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
     """
     def __init__(self):
         super(SystemdCgroupApiv2, self).__init__()
-        self._root_cgroup_path = self.get_root_cgroup_path()
+        self._root_cgroup_path = self._get_root_cgroup_path()
         self._controllers_enabled_at_root = self._get_controllers_enabled_at_root(self._root_cgroup_path) if self._root_cgroup_path != "" else []
 
     @staticmethod
-    def get_root_cgroup_path():
+    def _get_root_cgroup_path():
         """
         In v2, there is a unified mount point shared by all controllers. Use findmnt to get the unified mount point.
 
@@ -467,13 +479,19 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
                     return root_cgroup_path
         return ""
 
+    def get_root_cgroup_path(self):
+        """
+        Returns the unified cgroup mountpoint.
+        """
+        return self._root_cgroup_path
+
     @staticmethod
     def _get_controllers_enabled_at_root(root_cgroup_path):
         """
         Returns a list of the controllers enabled at the root cgroup. The cgroup.subtree_control file at the root shows
         a space separated list of the controllers which are enabled to control resource distribution from the root
         cgroup to its children. If a controller is listed here, then that controller is available to enable in children
-        cgroups. This method filters the list to only inlcude controllers which are supported by the agent.
+        cgroups. This method filters the list to only include controllers which are supported by the agent.
 
                 $ cat /sys/fs/cgroup/cgroup.subtree_control
                 cpuset cpu io memory hugetlb pids rdma misc
@@ -484,14 +502,15 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
             return list(set(controllers_enabled_at_root) & set(CgroupV2.get_supported_controllers()))
         return []
 
-    def get_process_cgroup_relative_path(self, process_id):
+    @staticmethod
+    def _get_process_relative_cgroup_path(process_id):
         """
+        Returns the relative path of the cgroup for the given process.
         The contents of the /proc/{process_id}/cgroup file are similar to
             # cat /proc/1218/cgroup
             0::/azure.slice/walinuxagent.service
 
-        Returns the relative paths of the cgroup for the given process.
-        The 'process_id' can be a numeric PID or the string "self" for the current process.
+        :param process_id: A numeric PID to return the relative path of, or the string "self" to return the relative path of the current process.
         """
         relative_path = ""
         for line in fileutil.read_file("/proc/{0}/cgroup".format(process_id)).splitlines():
@@ -502,32 +521,29 @@ class SystemdCgroupApiv2(_SystemdCgroupApi):
         return relative_path
 
     def get_unit_cgroup(self, unit_name, cgroup_name):
-        unit_controlgroup_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        unit_cgroup_relative_path = systemd.get_unit_property(unit_name, "ControlGroup")
+        unit_cgroup_path = ""
 
-        unified_unit_path = ""
         if self._root_cgroup_path != "":
-            unified_unit_path = os.path.join(self._root_cgroup_path, unit_controlgroup_path[1:])
+            unit_cgroup_path = os.path.join(self._root_cgroup_path, unit_cgroup_relative_path[1:])
 
-        return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path, cgroup_path=unified_unit_path,
-                        enabled_controllers=self._controllers_enabled_at_root)
+        return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path, cgroup_path=unit_cgroup_path, enabled_controllers=self._controllers_enabled_at_root)
 
-    def get_cgroup_from_relative_path(self, cgroup_name, relative_path):
-        unified_cgroup_path = ""
+    def get_cgroup_from_relative_path(self, relative_path, cgroup_name):
+        cgroup_path = ""
         if self._root_cgroup_path != "":
-            unified_cgroup_path = os.path.join(self._root_cgroup_path, relative_path)
+            cgroup_path = os.path.join(self._root_cgroup_path, relative_path)
 
-        return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path,
-                        cgroup_path=unified_cgroup_path, enabled_controllers=self._controllers_enabled_at_root)
+        return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path, cgroup_path=cgroup_path, enabled_controllers=self._controllers_enabled_at_root)
 
     def get_process_cgroup(self, process_id, cgroup_name):
-        process_relative_path = self.get_process_cgroup_relative_path(process_id)
+        relative_path = self._get_process_relative_cgroup_path(process_id)
+        cgroup_path = ""
 
-        unified_unit_path = ""
-        if self._root_cgroup_path != "" and process_relative_path != "":
-            unified_unit_path = os.path.join(self._root_cgroup_path, process_relative_path)
+        if self._root_cgroup_path != "" and relative_path != "":
+            cgroup_path = os.path.join(self._root_cgroup_path, relative_path)
 
-        return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path, cgroup_path=unified_unit_path,
-                        enabled_controllers=self._controllers_enabled_at_root)
+        return CgroupV2(cgroup_name=cgroup_name, root_cgroup_path=self._root_cgroup_path, cgroup_path=cgroup_path, enabled_controllers=self._controllers_enabled_at_root)
 
     def log_root_paths(self):
         log_cgroup_info("The root cgroup path is {0}".format(self._root_cgroup_path), send_event=False)
@@ -555,24 +571,21 @@ class Cgroup(object):
         """
         raise NotImplementedError()
 
-    def check_all_supported_controllers_enabled(self):
-        """
-        Cgroup version specific. Checks that all agent supported controllers are mounted/enabled.
-        """
-        raise NotImplementedError()
-
     def check_in_expected_slice(self, expected_slice):
         """
-        Cgroup version specific. Checks that the cgroup is in the expected slice.
+        Cgroup version specific. Returns True if the cgroup is in the expected slice, False otherwise.
+
+        :param expected_slice: The slice the cgroup is expected to be in.
         """
         raise NotImplementedError()
 
     def get_controller_metrics(self, expected_relative_path=None, controller=None):
         """
-        Cgroup version specific. Returns a list of the metrics for each agent supported controller which is
+        Cgroup version specific. Returns a list of the metrics for the agent supported controllers which are
         mounted/enabled for the cgroup.
-        If expected_relative_path is provided, metrics will only be returned if the cgroup path matches the expected path.
-        If controller is provided, only metrics for the provided controller will be returned.
+
+        :param expected_relative_path: The expected relative path of the cgroup. If provided, only metrics for controllers at this expected path will be returned.
+        :param controller: The controller to return metrics for. If provided, only metrics for the provided controller will be returned.
         """
         raise NotImplementedError()
 
@@ -586,27 +599,23 @@ class Cgroup(object):
 class CgroupV1(Cgroup):
     CPU_CONTROLLER = "cpu,cpuacct"
 
-    def __init__(self, cgroup_name, mount_points, cgroup_paths):
+    def __init__(self, cgroup_name, controller_mountpoints, controller_paths):
+        """
+        :param cgroup_name: The name of the cgroup. Used for logging/tracking purposes.
+        :param controller_mountpoints: A dictionary of controller-mountpoint mappings for each agent supported controller which is mounted.
+        :param controller_paths: A dictionary of controller-path mappings for each agent supported controller which is mounted. The path represents the absolute path of the controller.
+        """
         super(CgroupV1, self).__init__(cgroup_name=cgroup_name)
-        self._mount_points = mount_points
-        self._cgroup_paths = cgroup_paths
+        self._controller_mountpoints = controller_mountpoints
+        self._controller_paths = controller_paths
 
     @staticmethod
     def get_supported_controllers():
         return [CgroupV1.CPU_CONTROLLER, CgroupV1.MEMORY_CONTROLLER]
 
-    def check_all_supported_controllers_enabled(self):
-        all_controllers_enabled = True
-        for controller in self.get_supported_controllers():
-            if self._cgroup_paths.get(controller) is None:
-                log_cgroup_warning("{0} is not mounted for {1} cgroup - will not track {0}.".format(controller, self._cgroup_name), send_event=False)
-                all_controllers_enabled = False
-
-        return all_controllers_enabled
-
     def check_in_expected_slice(self, expected_slice):
         in_expected_slice = True
-        for controller, path in self._cgroup_paths.items():
+        for controller, path in self._controller_paths.items():
             if expected_slice not in path:
                 log_cgroup_warning("The {0} controller for the {1} cgroup is not mounted in the expected slice. Expected slice: {2}. Actual controller path: {3}".format(controller, self._cgroup_name, expected_slice, path), send_event=False)
                 in_expected_slice = False
@@ -615,27 +624,32 @@ class CgroupV1(Cgroup):
 
     def get_controller_metrics(self, expected_relative_path=None, controller=None):
         metrics = []
-        controllers = [controller] if controller is not None else list(self._cgroup_paths.keys())
+        required_controllers = [controller] if controller is not None else self.get_supported_controllers()
 
-        for required_controller in controllers:
+        for controller in required_controllers:
             controller_metrics = None
-            controller_path = self._cgroup_paths.get(required_controller)
+            controller_path = self._controller_paths.get(controller)
+
+            if controller_path is None:
+                log_cgroup_warning("{0} is not mounted for the {1} cgroup; will not track metrics".format(controller, self._cgroup_name), send_event=False)
+                continue
 
             if expected_relative_path is not None:
                 expected_path = ""
-                if self._mount_points[required_controller] is not None:
-                    expected_path = os.path.join(self._mount_points[required_controller], expected_relative_path)
+                controller_mountpoint = self._controller_mountpoints[controller]
+                if controller_mountpoint is not None:
+                    expected_path = os.path.join(controller_mountpoint, expected_relative_path)
                 if controller_path != expected_path:
-                    log_cgroup_warning("The {0} controller is not at the expected path for the {1} cgroup; will not track metrics. Cgroup path:[{2}] Expected:[{3}]".format(required_controller, self._cgroup_name, controller_path, expected_path), send_event=False)
+                    log_cgroup_warning("The {0} controller is not mounted at the expected path for the {1} cgroup; will not track metrics. Actual cgroup path:[{2}] Expected:[{3}]".format(controller, self._cgroup_name, controller_path, expected_path), send_event=False)
                     continue
 
-            if required_controller == self.CPU_CONTROLLER:
+            if controller == self.CPU_CONTROLLER:
                 controller_metrics = CpuMetrics(self._cgroup_name, controller_path)
-            elif required_controller == self.MEMORY_CONTROLLER:
+            elif controller == self.MEMORY_CONTROLLER:
                 controller_metrics = MemoryMetrics(self._cgroup_name, controller_path)
 
             if controller_metrics is not None:
-                msg = "{0} metrics for cgroup {1}".format(required_controller, controller_metrics)
+                msg = "{0} metrics for cgroup: {1}".format(controller, controller_metrics)
                 log_cgroup_info(msg, send_event=False)
                 metrics.append(controller_metrics)
 
@@ -643,7 +657,7 @@ class CgroupV1(Cgroup):
 
     def get_processes(self):
         pids = set()
-        for cgroup_path in self._cgroup_paths.values():
+        for cgroup_path in self._controller_paths.values():
             with open(os.path.join(cgroup_path, "cgroup.procs"), "r") as cgroup_procs:
                 for pid in cgroup_procs.read().split():
                     pids.add(int(pid))
@@ -654,6 +668,12 @@ class CgroupV2(Cgroup):
     CPU_CONTROLLER = "cpu"
 
     def __init__(self, cgroup_name, root_cgroup_path, cgroup_path, enabled_controllers):
+        """
+        :param cgroup_name: The name of the cgroup. Used for logging/tracking purposes.
+        :param root_cgroup_path: A string representing the root cgroup path. String can be empty.
+        :param cgroup_path: A string representing the absolute cgroup path. String can be empty.
+        :param enabled_controllers: A list of strings representing the agent supported controllers enabled at the root cgroup.
+        """
         super(CgroupV2, self).__init__(cgroup_name)
         self._root_cgroup_path = root_cgroup_path
         self._cgroup_path = cgroup_path
@@ -663,24 +683,15 @@ class CgroupV2(Cgroup):
     def get_supported_controllers():
         return [CgroupV2.CPU_CONTROLLER, CgroupV2.MEMORY_CONTROLLER]
 
-    def check_all_supported_controllers_enabled(self):
-        all_controllers_enabled = True
-        for controller in self.get_supported_controllers():
-            if controller not in self._enabled_controllers:
-                log_cgroup_warning("The {0} controller is not enabled.".format(controller), send_event=False)
-                all_controllers_enabled = False
-
-        return all_controllers_enabled
-
     def check_in_expected_slice(self, expected_slice):
         if expected_slice not in self._cgroup_path:
-            log_cgroup_warning("The {0} cgroup is not in the expected slice. Expected slice: {1}. Actual path: {2}".format(self._cgroup_name, expected_slice, self._cgroup_path), send_event=False)
+            log_cgroup_warning("The {0} cgroup is not in the expected slice. Expected slice: {1}. Actual cgroup path: {2}".format(self._cgroup_name, expected_slice, self._cgroup_path), send_event=False)
             return False
 
         return True
 
     def get_controller_metrics(self, expected_relative_path=None, controller=None):
-        # TODO - Implement controller metrics for CgroupV2
+        # TODO - Implement controller metrics for cgroup v2
         raise NotImplementedError()
 
     def get_processes(self):

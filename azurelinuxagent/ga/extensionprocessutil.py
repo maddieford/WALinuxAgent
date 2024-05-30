@@ -68,7 +68,7 @@ def handle_process_completion(process, command, timeout, stdout, stderr, error_c
     :param stdout: Must be a file since we seek on it when parsing the subprocess output
     :param stderr: Must be a file since we seek on it when parsing the subprocess outputs
     :param error_code: The error code to set if we raise an ExtensionError
-    :param cpu_metrics: Reference the cpu cgroup name and path
+    :param cpu_metrics: References the cpu metrics for the cgroup
     :return:
     """
     # Wait for process completion or timeout
