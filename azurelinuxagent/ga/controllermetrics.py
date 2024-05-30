@@ -92,7 +92,7 @@ class ControllerMetrics(object):
     def __init__(self, name, cgroup_path):
         """
         Initialize _data collection for the Memory controller
-        :param: name: Name of the ControllerMetrics
+        :param: name: Name of the CGroup
         :param: cgroup_path: Path of the controller
         :return:
         """
@@ -170,6 +170,9 @@ class ControllerMetrics(object):
         raise NotImplementedError()
 
     def get_unit_properties(self):
+        """
+        Returns a list of the unit properties to collect for the controller.
+        """
         raise NotImplementedError()
 
 

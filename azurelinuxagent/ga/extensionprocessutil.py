@@ -211,14 +211,14 @@ def format_stdout_stderr(stdout, stderr):
         return to_s(stdout, -1*max_len_each, stderr, -1*max_len_each)
 
 
-def get_cpu_throttled_time(cpu_cgroup):
+def get_cpu_throttled_time(cpu_metrics):
     """
     return the throttled time for the given cgroup.
     """
     throttled_time = 0
-    if cpu_cgroup is not None:
+    if cpu_metrics is not None:
         try:
-            throttled_time = cpu_cgroup.get_cpu_throttled_time(read_previous_throttled_time=False)
+            throttled_time = cpu_metrics.get_cpu_throttled_time(read_previous_throttled_time=False)
         except Exception as e:
             logger.warn("Failed to get cpu throttled time for the extension: {0}", ustr(e))
 
