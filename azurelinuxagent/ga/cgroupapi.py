@@ -406,11 +406,10 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
         try:
             cgroup_relative_path = os.path.join('azure.slice/azure-vmextensions.slice', extension_slice_name)
             cgroup = self.get_cgroup_from_relative_path(cgroup_relative_path, extension_name)
-            metrics = cgroup.get_controller_metrics()
-            for metric in metrics:
-                if isinstance(metric, CpuMetrics):
-                    cpu_metrics = metric
-                CGroupsTelemetry.track_cgroup(metric)
+            for metrics in cgroup.get_controller_metrics():
+                if isinstance(metrics, CpuMetrics):
+                    cpu_metrics = metrics
+                CGroupsTelemetry.track_cgroup(metrics)
 
         except IOError as e:
             if e.errno == 2:  # 'No such file or directory'
