@@ -29,11 +29,13 @@ from tests_e2e.tests.lib.azure_sdk_client import AzureSdkClient
 from tests_e2e.tests.lib.logging import log
 from tests_e2e.tests.lib.retry import execute_with_retry
 from tests_e2e.tests.lib.virtual_machine_client import VirtualMachineClient
-from tests_e2e.tests.lib.virtual_machine_extension_client import VirtualMachineExtensionClient
 from tests_e2e.tests.lib.vm_extension_identifier import VmExtensionIdentifier
 
 
 class VirtualMachineRunCommandClient(AzureSdkClient):
+    """
+    Client for operations virtual machine RunCommand extensions.
+    """
     def __init__(self, vm: VirtualMachineClient, extension: VmExtensionIdentifier, resource_name: str = None):
         super().__init__()
         self._vm: VirtualMachineClient = vm
@@ -41,9 +43,6 @@ class VirtualMachineRunCommandClient(AzureSdkClient):
         self._resource_name = resource_name or extension.type
         self._compute_client: ComputeManagementClient = AzureSdkClient.create_client(ComputeManagementClient, self._vm.cloud, self._vm.subscription)
 
-    """
-    Client for operations virtual machine RunCommand extensions.
-    """
     def get_instance_view(self) -> VirtualMachineRunCommandInstanceView:
         """
         Retrieves the instance view of the run command extension
