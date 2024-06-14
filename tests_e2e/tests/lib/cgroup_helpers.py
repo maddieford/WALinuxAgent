@@ -171,7 +171,7 @@ def get_unit_cgroup_proc_path(unit_name, controller):
     cgroups_api = get_cgroup_api()
     unit_cgroup = cgroups_api.get_unit_cgroup(unit_name=unit_name, cgroup_name="test cgroup")
     if isinstance(cgroups_api, SystemdCgroupApiv1):
-        return unit_cgroup.get_procs_path(controller=controller)
+        return unit_cgroup.get_controller_procs_path(controller=controller)
     else:
         return unit_cgroup.get_procs_path()
 

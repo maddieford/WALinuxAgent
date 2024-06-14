@@ -654,7 +654,7 @@ class CgroupV1(Cgroup):
 
         return metrics
 
-    def get_procs_path(self, controller):
+    def get_controller_procs_path(self, controller):
         controller_path = self._controller_paths.get(controller)
         if controller_path is not None and controller_path != "":
             return os.path.join(controller_path, "cgroup.procs")
@@ -663,7 +663,7 @@ class CgroupV1(Cgroup):
     def get_processes(self):
         pids = set()
         for controller in self._controller_paths.keys():
-            procs_path = self.get_procs_path(controller)
+            procs_path = self.get_controller_procs_path(controller)
             if os.path.exists(procs_path):
                 with open(procs_path, "r") as cgroup_procs:
                     for pid in cgroup_procs.read().split():
