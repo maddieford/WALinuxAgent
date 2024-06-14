@@ -28,6 +28,7 @@ from assertpy import fail
 from azure.mgmt.compute.models import VirtualMachineInstanceView
 
 from tests_e2e.tests.lib.agent_test import AgentVmTest
+from tests_e2e.tests.lib.azure_sdk_client import AzureSdkClient
 from tests_e2e.tests.lib.virtual_machine_runcommand_client import VirtualMachineRunCommandClient
 from tests_e2e.tests.lib.vm_extension_identifier import VmExtensionIds
 from tests_e2e.tests.lib.logging import log
@@ -37,7 +38,7 @@ from tests_e2e.tests.lib.virtual_machine_extension_client import VirtualMachineE
 
 class MultiConfigExt(AgentVmTest):
     class TestCase:
-        def __init__(self, extension: VirtualMachineExtensionClient, get_settings: Callable[[str], Dict[str, str]]):
+        def __init__(self, extension: AzureSdkClient, get_settings: Callable[[str], Dict[str, str]]):
             self.extension = extension
             self.get_settings = get_settings
             self.test_guid: str = str(uuid.uuid4())

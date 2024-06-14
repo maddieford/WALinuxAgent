@@ -20,17 +20,27 @@
 #
 import json
 from typing import Any, Dict, Callable
-
 from assertpy import soft_assertions, assert_that
+
+from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.compute.models import VirtualMachineRunCommand, VirtualMachineRunCommandScriptSource, VirtualMachineRunCommandInstanceView
 
 from tests_e2e.tests.lib.azure_sdk_client import AzureSdkClient
 from tests_e2e.tests.lib.logging import log
 from tests_e2e.tests.lib.retry import execute_with_retry
+from tests_e2e.tests.lib.virtual_machine_client import VirtualMachineClient
 from tests_e2e.tests.lib.virtual_machine_extension_client import VirtualMachineExtensionClient
+from tests_e2e.tests.lib.vm_extension_identifier import VmExtensionIdentifier
 
 
-class VirtualMachineRunCommandClient(VirtualMachineExtensionClient):
+class VirtualMachineRunCommandClient(AzureSdkClient):
+    def __init__(self, vm: VirtualMachineClient, extension: VmExtensionIdentifier, resource_name: str = None):
+        super().__init__()
+        self._vm: VirtualMachineClient = vm
+        self._identifier = extension
+        self._resource_name = resource_name or extension.type
+        self._compute_client: ComputeManagementClient = AzureSdkClient.create_client(ComputeManagementClient, self._vm.cloud, self._vm.subscription)
+
     """
     Client for operations virtual machine RunCommand extensions.
     """
@@ -116,3 +126,6 @@ class VirtualMachineRunCommandClient(VirtualMachineExtensionClient):
                 assert_function(instance_view)
 
         log.info("The instance view matches the expected values")
+
+    def __str__(self):
+        return f"{self._identifier}"
