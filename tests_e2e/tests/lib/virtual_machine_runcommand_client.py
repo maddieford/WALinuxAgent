@@ -16,7 +16,7 @@
 #
 
 #
-# This module includes facilities to execute VM extension operations (enable, remove, etc).
+# This module includes facilities to execute VM extension runcommand operations (enable, remove, etc).
 #
 import json
 from typing import Any, Dict, Callable
@@ -36,7 +36,7 @@ class VirtualMachineRunCommandClient(VirtualMachineExtensionClient):
     """
     def get_instance_view(self) -> VirtualMachineRunCommandInstanceView:
         """
-        Retrieves the instance view of the extension
+        Retrieves the instance view of the run command extension
         """
         log.info("Retrieving instance view for %s...", self._identifier)
 
@@ -81,7 +81,7 @@ class VirtualMachineRunCommandClient(VirtualMachineExtensionClient):
 
     def delete(self, timeout: int = AzureSdkClient._DEFAULT_TIMEOUT) -> None:
         """
-        Performs a delete operation on the extension
+        Performs a delete operation on the run command extension
         """
         self._execute_async_operation(
             lambda: self._compute_client.virtual_machine_run_commands.begin_delete(
