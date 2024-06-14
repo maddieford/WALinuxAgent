@@ -54,9 +54,6 @@ class VirtualMachineRunCommandClient(VirtualMachineExtensionClient):
     ) -> None:
         """
         Performs an enable operation on the run command extension.
-
-        NOTE: 'force_update' is not a parameter of the actual ARM API. It is provided here for convenience: If set to True,
-              the 'force_update_tag' can be left unspecified and this method will generate a random tag.
         """
         run_command_parameters = VirtualMachineRunCommand(
             location=self._vm.location,
