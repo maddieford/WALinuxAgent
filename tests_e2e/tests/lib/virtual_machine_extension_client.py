@@ -25,7 +25,7 @@ from assertpy import assert_that, soft_assertions
 from typing import Any, Callable, Dict
 
 from azure.mgmt.compute import ComputeManagementClient
-from azure.mgmt.compute.models import VirtualMachineExtension, VirtualMachineExtensionInstanceView, VirtualMachineRunCommand, VirtualMachineRunCommandScriptSource
+from azure.mgmt.compute.models import VirtualMachineExtension, VirtualMachineExtensionInstanceView
 
 from tests_e2e.tests.lib.azure_sdk_client import AzureSdkClient
 from tests_e2e.tests.lib.vm_extension_identifier import VmExtensionIdentifier
@@ -107,31 +107,6 @@ class VirtualMachineExtensionClient(AzureSdkClient):
             timeout=timeout)
 
         log.info("Provisioning state: %s", result.provisioning_state)
-
-    def add_rc(self, script: str, timeout: int = AzureSdkClient._DEFAULT_TIMEOUT) -> None:
-        source = VirtualMachineRunCommandScriptSource(script=script)
-        rc_parameters = VirtualMachineRunCommand(location=self._vm.location, source=source)
-
-        result: VirtualMachineExtension = self._execute_async_operation(
-            lambda: self._compute_client.virtual_machine_run_commands.begin_create_or_update(
-                self._vm.resource_group,
-                self._vm.name,
-                self._resource_name,
-                rc_parameters
-            ),
-            operation_name=f"Enable {self._identifier}",
-            timeout=timeout)
-
-        log.info("Provisioning state: %s", result.provisioning_state)
-
-    def remove_rc(self, timeout: int = AzureSdkClient._DEFAULT_TIMEOUT) -> None:
-        self._execute_async_operation(
-            lambda: self._compute_client.virtual_machine_run_commands.begin_delete(
-                self._vm.resource_group,
-                self._vm.name,
-                self._resource_name),
-            operation_name=f"Delete {self._identifier}",
-            timeout=timeout)
 
     def delete(self, timeout: int = AzureSdkClient._DEFAULT_TIMEOUT) -> None:
         """
