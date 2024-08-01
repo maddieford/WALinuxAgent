@@ -47,6 +47,7 @@ Debug.CgroupDisableOnQuotaCheckFailure = True
 Debug.CgroupLogMetrics = False
 Debug.CgroupMonitorExpiryTime = 2022-03-31
 Debug.CgroupMonitorExtensionName = Microsoft.Azure.Monitor.AzureMonitorLinuxAgent
+Debug.CgroupV2CollectLogs = False
 Debug.EnableAgentMemoryUsageCheck = False
 Debug.EnableFastTrack = True
 Debug.EnableGAVersioning = True

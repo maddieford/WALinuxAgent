@@ -24,7 +24,8 @@ import uuid
 
 from azurelinuxagent.common import logger
 from azurelinuxagent.common.event import WALAEventOperation, add_event
-from azurelinuxagent.ga.controllermetrics import CpuMetrics, MemoryMetrics
+from azurelinuxagent.ga.controllermetrics import CpuMetrics, CpuMetricsV1, MemoryMetricsV1, CpuMetricsV2, \
+    MemoryMetricsV2
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.conf import get_agent_pid_file_path
 from azurelinuxagent.common.exception import CGroupsException, ExtensionErrorCodes, ExtensionError, \
@@ -643,9 +644,9 @@ class CgroupV1(Cgroup):
                     continue
 
             if controller == self.CPU_CONTROLLER:
-                controller_metrics = CpuMetrics(self._cgroup_name, controller_path)
+                controller_metrics = CpuMetricsV1(self._cgroup_name, controller_path)
             elif controller == self.MEMORY_CONTROLLER:
-                controller_metrics = MemoryMetrics(self._cgroup_name, controller_path)
+                controller_metrics = MemoryMetricsV1(self._cgroup_name, controller_path)
 
             if controller_metrics is not None:
                 msg = "{0} metrics for cgroup: {1}".format(controller, controller_metrics)
@@ -698,8 +699,40 @@ class CgroupV2(Cgroup):
         return True
 
     def get_controller_metrics(self, expected_relative_path=None):
-        # TODO - Implement controller metrics for cgroup v2
-        raise NotImplementedError()
+        metrics = []
+
+        for controller in self.get_supported_controllers():
+            controller_metrics = None
+
+            if controller not in self._enabled_controllers:
+                log_cgroup_warning("{0} controller is not enabled; will not track metrics".format(controller),
+                                   send_event=False)
+                continue
+
+            if self._cgroup_path == "":
+                log_cgroup_warning("Cgroup path for {0} cannot be determined; will not track metrics".format(self._cgroup_name),
+                                   send_event=False)
+                continue
+
+            if expected_relative_path is not None:
+                expected_path = os.path.join(self._root_cgroup_path, expected_relative_path)
+                if self._cgroup_path != expected_path:
+                    log_cgroup_warning(
+                        "The {0} cgroup is not mounted at the expected path; will not track metrics. Actual cgroup path:[{1}] Expected:[{2}]".format(
+                            self._cgroup_name, self._cgroup_path, expected_path), send_event=False)
+                    continue
+
+            if controller == self.CPU_CONTROLLER:
+                controller_metrics = CpuMetricsV2(self._cgroup_name, self._cgroup_path)
+            elif controller == self.MEMORY_CONTROLLER:
+                controller_metrics = MemoryMetricsV2(self._cgroup_name, self._cgroup_path)
+
+            if controller_metrics is not None:
+                msg = "{0} metrics for cgroup: {1}".format(controller, controller_metrics)
+                log_cgroup_info(msg, send_event=False)
+                metrics.append(controller_metrics)
+
+        return metrics
 
     def get_procs_path(self):
         if self._cgroup_path != "":

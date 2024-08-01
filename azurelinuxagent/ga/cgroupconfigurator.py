@@ -176,6 +176,8 @@ class CGroupConfigurator(object):
                     log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                     return
 
+                self.__setup_azure_slice(using_v2=self.using_cgroup_v2())
+
                 if self.using_cgroup_v2():
                     log_cgroup_info("Agent and extensions resource monitoring is not currently supported on cgroup v2")
                     return
@@ -185,8 +187,6 @@ class CGroupConfigurator(object):
                 if agent_slice not in (AZURE_SLICE, "system.slice"):
                     log_cgroup_warning("The agent is within an unexpected slice: {0}".format(agent_slice))
                     return
-
-                self.__setup_azure_slice()
 
                 # Log mount points/root paths for cgroup controllers
                 self._cgroups_api.log_root_paths()
@@ -231,7 +231,7 @@ class CGroupConfigurator(object):
             return True
 
         @staticmethod
-        def __setup_azure_slice():
+        def __setup_azure_slice(using_v2):
             """
             The agent creates "azure.slice" for use by extensions and the agent. The agent runs under "azure.slice" directly and each
             extension runs under its own slice ("Microsoft.CPlat.Extension.slice" in the example below). All the slices for

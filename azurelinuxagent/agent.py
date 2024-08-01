@@ -48,7 +48,7 @@ from azurelinuxagent.common.version import AGENT_NAME, AGENT_LONG_VERSION, AGENT
     PY_VERSION_MAJOR, PY_VERSION_MINOR, \
     PY_VERSION_MICRO, GOAL_STATE_AGENT_VERSION, \
     get_daemon_version, set_daemon_version
-from azurelinuxagent.ga.collect_logs import CollectLogsHandler, get_log_collector_monitor_handler
+from azurelinuxagent.ga.collect_logs import get_log_collector_monitor_handler
 from azurelinuxagent.pa.provision.default import ProvisionHandler
 
 
@@ -209,38 +209,41 @@ class Agent(object):
         # Check the cgroups unit
         log_collector_monitor = None
         tracked_metrics = []
-        if CollectLogsHandler.is_enabled_monitor_cgroups_check():
-            try:
-                cgroup_api = get_cgroup_api()
-            except InvalidCgroupMountpointException as e:
-                log_cgroup_warning("The agent does not support cgroups if the default systemd mountpoint is not being used: {0}".format(ustr(e)), send_event=True)
-                sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
-            except CGroupsException as e:
-                log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
-                sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
+        # TODO: Maddie - add this check back in
+        # if CollectLogsHandler.is_enabled_monitor_cgroups_check():
+        try:
+            cgroup_api = get_cgroup_api()
+        except InvalidCgroupMountpointException as e:
+            log_cgroup_warning("The agent does not support cgroups if the default systemd mountpoint is not being used: {0}".format(ustr(e)), send_event=True)
+            sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
+        except CGroupsException as e:
+            log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
+            sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
-            log_collector_cgroup = cgroup_api.get_process_cgroup(process_id="self", cgroup_name=AGENT_LOG_COLLECTOR)
-            tracked_metrics = log_collector_cgroup.get_controller_metrics()
+        log_collector_cgroup = cgroup_api.get_process_cgroup(process_id="self", cgroup_name=AGENT_LOG_COLLECTOR)
+        tracked_metrics = log_collector_cgroup.get_controller_metrics()
 
-            if len(tracked_metrics) != len(log_collector_cgroup.get_supported_controllers()):
-                log_cgroup_warning("At least one required controller is missing. The following controllers are required for the log collector to run: {0}".format(log_collector_cgroup.get_supported_controllers()))
-                sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
+        if len(tracked_metrics) != len(log_collector_cgroup.get_supported_controllers()):
+            log_cgroup_warning("At least one required controller is missing. The following controllers are required for the log collector to run: {0}".format(log_collector_cgroup.get_supported_controllers()))
+            sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
-            if not log_collector_cgroup.check_in_expected_slice(cgroupconfigurator.LOGCOLLECTOR_SLICE):
-                log_cgroup_warning("The Log Collector process is not in the proper cgroups", send_event=False)
-                sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
+        if not log_collector_cgroup.check_in_expected_slice(cgroupconfigurator.LOGCOLLECTOR_SLICE):
+            log_cgroup_warning("The Log Collector process is not in the proper cgroups", send_event=False)
+            sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
         try:
             log_collector = LogCollector(is_full_mode)
             # Running log collector resource monitoring only if agent starts the log collector.
             # If Log collector start by any other means, then it will not be monitored.
-            if CollectLogsHandler.is_enabled_monitor_cgroups_check():
-                for metric in tracked_metrics:
-                    if isinstance(metric, CpuMetrics):
-                        metric.initialize_cpu_usage()
-                        break
-                log_collector_monitor = get_log_collector_monitor_handler(tracked_metrics)
-                log_collector_monitor.run()
+            # TODO: Maddie - add this check back in
+            # if CollectLogsHandler.is_enabled_monitor_cgroups_check():
+            for metric in tracked_metrics:
+                if isinstance(metric, CpuMetrics):
+                    metric.initialize_cpu_usage()
+                    break
+            log_collector_monitor = get_log_collector_monitor_handler(tracked_metrics)
+            log_collector_monitor.run()
+
             archive = log_collector.collect_logs_and_get_archive()
             logger.info("Log collection successfully completed. Archive can be found at {0} "
                   "and detailed log output can be found at {1}".format(archive, OUTPUT_RESULTS_FILE_PATH))

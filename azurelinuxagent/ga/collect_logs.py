@@ -21,11 +21,13 @@ import os
 import sys
 import threading
 import time
+from pathlib import Path
+
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
 
 import azurelinuxagent.common.conf as conf
 from azurelinuxagent.common import logger
-from azurelinuxagent.ga.controllermetrics import MetricsCounter
+from azurelinuxagent.ga.controllermetrics import MetricsCounter, MemoryMetricsV2, MemoryMetricsV1
 from azurelinuxagent.common.event import elapsed_milliseconds, add_event, WALAEventOperation, report_metric
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.ga.interfaces import ThreadHandlerInterface
@@ -47,17 +49,24 @@ def is_log_collection_allowed():
     # There are three conditions that need to be met in order to allow periodic log collection:
     # 1) It should be enabled in the configuration.
     # 2) The system must be using cgroups to manage services. Needed for resource limiting of the log collection.
+    #    This is true if either:
+    #       a. cgroup usage is enabled; OR
+    #       b. the machine is using cgroup v2 and Debug.CgroupV2CollectLogs is enabled in the configuration.
     # 3) The python version must be greater than 2.6 in order to support the ZipFile library used when collecting.
     conf_enabled = conf.get_collect_logs()
     cgroups_enabled = CGroupConfigurator.get_instance().enabled()
+    cgroup_v2_log_collector_enabled = CGroupConfigurator.get_instance().using_cgroup_v2() and conf.get_cgroup_v2_collect_logs()
     supported_python = PY_VERSION_MINOR >= 6 if PY_VERSION_MAJOR == 2 else PY_VERSION_MAJOR == 3
-    is_allowed = conf_enabled and cgroups_enabled and supported_python
+    is_allowed = conf_enabled and (cgroups_enabled or cgroup_v2_log_collector_enabled) and supported_python
 
     msg = "Checking if log collection is allowed at this time [{0}]. All three conditions must be met: " \
-          "configuration enabled [{1}], cgroups enabled [{2}], python supported: [{3}]".format(is_allowed,
-                                                                                               conf_enabled,
-                                                                                               cgroups_enabled,
-                                                                                               supported_python)
+          "1. configuration enabled [{1}], " \
+          "2. cgroups v1 enabled [{2}] OR cgroups v2 in in use and v2 collect logs configuration enabled [{3}], " \
+          "3. python supported: [{4}]".format(is_allowed,
+                                              conf_enabled,
+                                              cgroups_enabled,
+                                              cgroup_v2_log_collector_enabled,
+                                              supported_python)
     logger.info(msg)
     add_event(
         name=AGENT_NAME,
@@ -104,6 +113,7 @@ class CollectLogsHandler(ThreadHandlerInterface):
         self.should_run = True
         self.last_state = None
         self.period = conf.get_collect_logs_period()
+        self.run_num = 0
 
     def run(self):
         self.start()
@@ -144,7 +154,7 @@ class CollectLogsHandler(ThreadHandlerInterface):
     def daemon(self):
         # Delay the first collector on start up to give short lived VMs (that might be dead before the second 
         # collection has a chance to run) an opportunity to do produce meaningful logs to collect.
-        time.sleep(_INITIAL_LOG_COLLECTION_DELAY)
+        time.sleep(60)
 
         try:
             CollectLogsHandler.enable_monitor_cgroups_check()
@@ -153,7 +163,21 @@ class CollectLogsHandler(ThreadHandlerInterface):
 
             while not self.stopped():
                 try:
+                    # file = 1
+                    # files = []
+                    # while file < 29:
+                    #     filename = "{0}-{1}.txt".format(file, self.run_num)
+                    #     files.append(Path("/var/log/sample/{0}".format(filename)))
+                    #     mkfile_cmd = ["fallocate", "-l", "5M", "/var/log/sample/{0}".format(filename)]
+                    #     shellutil.run_command(mkfile_cmd, log_error=False)
+                    #     file += 1
+
                     self.collect_and_send_logs()
+
+                    # for file_to_remove in files:
+                    #     os.remove(file_to_remove)
+
+                    self.run_num += 1
                 except Exception as e:
                     logger.error("An error occurred in the log collection thread main loop; "
                                  "will skip the current iteration.\n{0}", ustr(e))
@@ -166,6 +190,8 @@ class CollectLogsHandler(ThreadHandlerInterface):
 
     def collect_and_send_logs(self):
         if self._collect_logs():
+            slice_memory = MemoryMetricsV2("lc slice", "/sys/fs/cgroup/azure.slice/azure-walinuxagent.slice/azure-walinuxagent-logcollector.slice")
+            logger.info("Memory/Memory slice summary [azure-walinuxagent-logcollector] = {0}".format(slice_memory.get_all_metrics_concurrently()))
             self._send_logs()
 
     def _collect_logs(self):
@@ -174,16 +200,23 @@ class CollectLogsHandler(ThreadHandlerInterface):
         # Invoke the command line tool in the agent to collect logs, with resource limits on CPU.
         # Some distros like ubuntu20 by default cpu and memory accounting enabled. Thus create nested cgroups under the logcollector slice
         # So disabling CPU and Memory accounting prevents from creating nested cgroups, so that all the counters will be present in logcollector Cgroup
-
-        systemd_cmd = [
-            "systemd-run", "--property=CPUAccounting=no", "--property=MemoryAccounting=no",
-            "--unit={0}".format(logcollector.CGROUPS_UNIT),
-            "--slice={0}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE), "--scope"
-        ]
+        if CGroupConfigurator.get_instance().using_cgroup_v2():
+            systemd_cmd = [
+                "systemd-run", "--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%", "--property=MemoryHigh=160M",
+                "--unit={0}".format(logcollector.CGROUPS_UNIT),
+                "--slice={0}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE), "--scope"
+            ]
+        else:
+            systemd_cmd = [
+                "systemd-run", "--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%",
+                "--unit={0}".format(logcollector.CGROUPS_UNIT),
+                "--slice={0}".format(cgroupconfigurator.LOGCOLLECTOR_SLICE), "--scope"
+            ]
 
         # The log tool is invoked from the current agent's egg with the command line option
         collect_logs_cmd = [sys.executable, "-u", sys.argv[0], "-collect-logs"]
         final_command = systemd_cmd + collect_logs_cmd
+        logger.info("final command: {0}".format(final_command))
 
         def exec_command():
             start_time = datetime.datetime.utcnow()
@@ -277,11 +310,11 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
     def get_thread_name():
         return LogCollectorMonitorHandler._THREAD_NAME
 
-    def __init__(self, cgroups):
+    def __init__(self, controller_metrics):
         self.event_thread = None
         self.should_run = True
-        self.period = 2  # Log collector monitor runs every 2 secs.
-        self.cgroups = cgroups
+        self.period = 0.5  # Log collector monitor runs every 2 secs.
+        self.controller_metrics = controller_metrics
         self.__log_metrics = conf.get_cgroup_log_metrics()
 
     def run(self):
@@ -326,8 +359,8 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
 
     def _poll_resource_usage(self):
         metrics = []
-        for cgroup in self.cgroups:
-            metrics.extend(cgroup.get_tracked_metrics(track_throttled_time=True))
+        for metric in self.controller_metrics:
+            metrics.extend(metric.get_tracked_metrics(track_throttled_time=True))
         return metrics
 
     def _send_telemetry(self, metrics):
@@ -342,12 +375,12 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
             elif metric.counter == MetricsCounter.SWAP_MEM_USAGE:
                 current_usage += metric.value
 
-        if current_usage > LOGCOLLECTOR_MEMORY_LIMIT:
-            msg = "Log collector memory limit {0} bytes exceeded. The max reported usage is {1} bytes.".format(LOGCOLLECTOR_MEMORY_LIMIT, current_usage)
-            logger.info(msg)
-            add_event(
-                name=AGENT_NAME,
-                version=CURRENT_VERSION,
-                op=WALAEventOperation.LogCollection,
-                message=msg)
-            os._exit(GRACEFUL_KILL_ERRCODE)
+        # if current_usage > LOGCOLLECTOR_MEMORY_LIMIT:
+        #     msg = "Log collector memory limit {0} bytes exceeded. The max reported usage is {1} bytes.".format(LOGCOLLECTOR_MEMORY_LIMIT, current_usage)
+        #     logger.info(msg)
+        #     add_event(
+        #         name=AGENT_NAME,
+        #         version=CURRENT_VERSION,
+        #         op=WALAEventOperation.LogCollection,
+        #         message=msg)
+        #     os._exit(GRACEFUL_KILL_ERRCODE)

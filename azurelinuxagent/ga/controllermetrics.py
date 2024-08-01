@@ -83,9 +83,12 @@ class MetricsCounter(object):
     SWAP_MEM_USAGE = "Swap Memory Usage"
     AVAILABLE_MEM = "Available MBytes"
     USED_MEM = "Used MBytes"
+    TOTAL_SEPARATED = "Memory summary"
+    MEM_THROTTLED = "Memory Throttled Events"
 
 
 re_user_system_times = re.compile(r'user (\d+)\nsystem (\d+)\n')
+re_usage_time = re.compile(r'usage_usec (\d+)\n')
 
 
 class ControllerMetrics(object):
@@ -188,6 +191,64 @@ class CpuMetrics(ControllerMetrics):
         self._previous_throttled_time = None
         self._current_throttled_time = None
 
+    def get_throttled_time(self):
+        raise NotImplementedError()
+
+    def _cpu_usage_initialized(self):
+        return self._current_cgroup_cpu is not None and self._current_system_cpu is not None
+
+    def initialize_cpu_usage(self):
+        """
+        Sets the initial values of CPU usage. This function must be invoked before calling get_cpu_usage().
+        """
+        raise NotImplementedError()
+
+    def get_cpu_usage(self):
+        """
+        Computes the CPU used by the cgroup since the last call to this function.
+
+        The usage is measured as a percentage of utilization of 1 core in the system. For example,
+        using 1 core all of the time on a 4-core system would be reported as 100%.
+
+        NOTE: initialize_cpu_usage() must be invoked before calling get_cpu_usage()
+        """
+        raise NotImplementedError()
+
+    def get_cpu_throttled_time(self, read_previous_throttled_time=True):
+        """
+        Computes the throttled time (in seconds) since the last call to this function.
+        NOTE: initialize_cpu_usage() must be invoked before calling this function
+        Compute only current throttled time if read_previous_throttled_time set to False
+        """
+        raise NotImplementedError()
+
+    def get_tracked_metrics(self, **kwargs):
+        tracked = []
+        cpu_usage = self.get_cpu_usage()
+        if cpu_usage >= float(0):
+            tracked.append(
+                MetricValue(MetricsCategory.CPU_CATEGORY, MetricsCounter.PROCESSOR_PERCENT_TIME, self.name, cpu_usage))
+
+        if 'track_throttled_time' in kwargs and kwargs['track_throttled_time']:
+            throttled_time = self.get_cpu_throttled_time()
+            if cpu_usage >= float(0) and throttled_time >= float(0):
+                tracked.append(
+                    MetricValue(MetricsCategory.CPU_CATEGORY, MetricsCounter.THROTTLED_TIME, self.name, throttled_time))
+
+        return tracked
+
+    def get_unit_properties(self):
+        return ["CPUAccounting", "CPUQuotaPerSecUSec"]
+
+
+class CpuMetricsV1(CpuMetrics):
+    def initialize_cpu_usage(self):
+        if self._cpu_usage_initialized():
+            raise CGroupsException("initialize_cpu_usage() should be invoked only once")
+        self._current_cgroup_cpu = self._get_cpu_ticks(allow_no_such_file_or_directory_error=True)
+        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot()
+        self._current_throttled_time = self.get_throttled_time()
+
     def _get_cpu_ticks(self, allow_no_such_file_or_directory_error=False):
         """
         Returns the number of USER_HZ of CPU time (user and system) consumed by this cgroup.
@@ -221,6 +282,20 @@ class CpuMetrics(ControllerMetrics):
 
         return cpu_ticks
 
+    def get_cpu_usage(self):
+        if not self._cpu_usage_initialized():
+            raise CGroupsException("initialize_cpu_usage() must be invoked before the first call to get_cpu_usage()")
+
+        self._previous_cgroup_cpu = self._current_cgroup_cpu
+        self._previous_system_cpu = self._current_system_cpu
+        self._current_cgroup_cpu = self._get_cpu_ticks()
+        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot()
+
+        cgroup_delta = self._current_cgroup_cpu - self._previous_cgroup_cpu
+        system_delta = max(1, self._current_system_cpu - self._previous_system_cpu)
+
+        return round(100.0 * self._osutil.get_processor_cores() * float(cgroup_delta) / float(system_delta), 3)
+
     def get_throttled_time(self):
         try:
             with open(os.path.join(self.path, 'cpu.stat')) as cpu_stat:
@@ -244,47 +319,7 @@ class CpuMetrics(ControllerMetrics):
         except Exception as e:
             raise CGroupsException("Failed to read cpu.stat: {0}".format(ustr(e)))
 
-    def _cpu_usage_initialized(self):
-        return self._current_cgroup_cpu is not None and self._current_system_cpu is not None
-
-    def initialize_cpu_usage(self):
-        """
-        Sets the initial values of CPU usage. This function must be invoked before calling get_cpu_usage().
-        """
-        if self._cpu_usage_initialized():
-            raise CGroupsException("initialize_cpu_usage() should be invoked only once")
-        self._current_cgroup_cpu = self._get_cpu_ticks(allow_no_such_file_or_directory_error=True)
-        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot()
-        self._current_throttled_time = self.get_throttled_time()
-
-    def get_cpu_usage(self):
-        """
-        Computes the CPU used by the cgroup since the last call to this function.
-
-        The usage is measured as a percentage of utilization of 1 core in the system. For example,
-        using 1 core all of the time on a 4-core system would be reported as 100%.
-
-        NOTE: initialize_cpu_usage() must be invoked before calling get_cpu_usage()
-        """
-        if not self._cpu_usage_initialized():
-            raise CGroupsException("initialize_cpu_usage() must be invoked before the first call to get_cpu_usage()")
-
-        self._previous_cgroup_cpu = self._current_cgroup_cpu
-        self._previous_system_cpu = self._current_system_cpu
-        self._current_cgroup_cpu = self._get_cpu_ticks()
-        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot()
-
-        cgroup_delta = self._current_cgroup_cpu - self._previous_cgroup_cpu
-        system_delta = max(1, self._current_system_cpu - self._previous_system_cpu)
-
-        return round(100.0 * self._osutil.get_processor_cores() * float(cgroup_delta) / float(system_delta), 3)
-
     def get_cpu_throttled_time(self, read_previous_throttled_time=True):
-        """
-        Computes the throttled time (in seconds) since the last call to this function.
-        NOTE: initialize_cpu_usage() must be invoked before calling this function
-        Compute only current throttled time if read_previous_throttled_time set to False
-        """
         if not read_previous_throttled_time:
             return float(self.get_throttled_time() / 1E9)
 
@@ -297,23 +332,109 @@ class CpuMetrics(ControllerMetrics):
 
         return float(self._current_throttled_time - self._previous_throttled_time) / 1E9
 
-    def get_tracked_metrics(self, **kwargs):
-        tracked = []
-        cpu_usage = self.get_cpu_usage()
-        if cpu_usage >= float(0):
-            tracked.append(
-                MetricValue(MetricsCategory.CPU_CATEGORY, MetricsCounter.PROCESSOR_PERCENT_TIME, self.name, cpu_usage))
 
-        if 'track_throttled_time' in kwargs and kwargs['track_throttled_time']:
-            throttled_time = self.get_cpu_throttled_time()
-            if cpu_usage >= float(0) and throttled_time >= float(0):
-                tracked.append(
-                    MetricValue(MetricsCategory.CPU_CATEGORY, MetricsCounter.THROTTLED_TIME, self.name, throttled_time))
+class CpuMetricsV2(CpuMetrics):
+    def initialize_cpu_usage(self):
+        if self._cpu_usage_initialized():
+            raise CGroupsException("initialize_cpu_usage() should be invoked only once")
+        self._current_cgroup_cpu = self._get_cpu_time(allow_no_such_file_or_directory_error=True)
+        self._current_system_cpu = self._osutil.get_total_cpu_ticks_since_boot()
+        self._current_throttled_time = self.get_throttled_time()
 
-        return tracked
+    def _get_cpu_time(self, allow_no_such_file_or_directory_error=False):
+        """
+        Returns the CPU time (user and system) consumed by this cgroup in seconds.
 
-    def get_unit_properties(self):
-        return ["CPUAccounting", "CPUQuotaPerSecUSec"]
+        If allow_no_such_file_or_directory_error is set to True and cpu.stat does not exist the function
+        returns 0; this is useful when the function can be called before the cgroup has been created.
+        """
+        try:
+            cpu_stat = self._get_file_contents('cpu.stat')
+        except Exception as e:
+            if not isinstance(e, (IOError, OSError)) or e.errno != errno.ENOENT:  # pylint: disable=E1101
+                raise CGroupsException("Failed to read cpu.stat: {0}".format(ustr(e)))
+            if not allow_no_such_file_or_directory_error:
+                raise e
+            cpu_stat = None
+
+        cpu_time = 0
+
+        if cpu_stat is not None:
+            # Sample file:
+            #     # cat /sys/fs/cgroup/azure.slice/azure-walinuxagent.slice/azure-walinuxagent-logcollector.slice/collect-logs.scope/cpu.stat
+            #     usage_usec 1990707
+            #     user_usec 1939858
+            #     system_usec 50848
+            #     core_sched.force_idle_usec 0
+            #     nr_periods 397
+            #     nr_throttled 397
+            #     throttled_usec 37994949
+            #     nr_bursts 0
+            #     burst_usec 0
+            #
+            match = re_usage_time.match(cpu_stat)
+            if not match:
+                raise CGroupsException(
+                    "The contents of {0} are invalid: {1}".format(self._get_cgroup_file('cpu.stat'), cpu_stat))
+            cpu_time = int(match.groups()[0])/1E6
+
+        return cpu_time
+
+    def get_cpu_usage(self):
+        if not self._cpu_usage_initialized():
+            raise CGroupsException("initialize_cpu_usage() must be invoked before the first call to get_cpu_usage()")
+
+        self._previous_cgroup_cpu = self._current_cgroup_cpu
+        self._previous_system_cpu = self._current_system_cpu
+        self._current_cgroup_cpu = self._get_cpu_time()
+        self._current_system_cpu = self._osutil.get_system_uptime()
+
+        cgroup_delta = self._current_cgroup_cpu - self._previous_cgroup_cpu
+        system_delta = max(1, self._current_system_cpu - self._previous_system_cpu)
+
+        return round(100.0 * float(cgroup_delta) / float(system_delta), 3)
+
+    def get_throttled_time(self):
+        try:
+            with open(os.path.join(self.path, 'cpu.stat')) as cpu_stat:
+                #
+                # Sample file:
+                #
+                #   # cat cpu.stat
+                #   usage_usec 200161503
+                #   user_usec 199388368
+                #   system_usec 773134
+                #   core_sched.force_idle_usec 0
+                #   nr_periods 40059
+                #   nr_throttled 40022
+                #   throttled_usec 3565247992
+                #   nr_bursts 0
+                #   burst_usec 0
+                #
+                for line in cpu_stat:
+                    match = re.match(r'throttled_usec\s+(\d+)', line)
+                    if match is not None:
+                        return int(match.groups()[0])
+                raise Exception("Cannot find throttled_usec")
+        except (IOError, OSError) as e:
+            if e.errno == errno.ENOENT:
+                return 0
+            raise CGroupsException("Failed to read cpu.stat: {0}".format(ustr(e)))
+        except Exception as e:
+            raise CGroupsException("Failed to read cpu.stat: {0}".format(ustr(e)))
+
+    def get_cpu_throttled_time(self, read_previous_throttled_time=True):
+        if not read_previous_throttled_time:
+            return float(self.get_throttled_time() / 1E6)
+
+        if not self._cpu_usage_initialized():
+            raise CGroupsException(
+                "initialize_cpu_usage() must be invoked before the first call to get_throttled_time()")
+
+        self._previous_throttled_time = self._current_throttled_time
+        self._current_throttled_time = self.get_throttled_time()
+
+        return float(self._current_throttled_time - self._previous_throttled_time) / 1E6
 
 
 class MemoryMetrics(ControllerMetrics):
@@ -345,6 +466,23 @@ class MemoryMetrics(ControllerMetrics):
         raise CounterNotFound("Cannot find counter: {0}".format(counter_name))
 
     def get_memory_usage(self):
+        raise NotImplementedError()
+
+    def try_swap_memory_usage(self):
+        raise NotImplementedError()
+
+    def get_max_memory_usage(self):
+        raise NotImplementedError()
+
+    def get_tracked_metrics(self, **_):
+        raise NotImplementedError()
+
+    def get_unit_properties(self):
+        return["MemoryAccounting"]
+
+
+class MemoryMetricsV1(MemoryMetrics):
+    def get_memory_usage(self):
         """
         Collect RSS+CACHE from memory.stat cgroup.
 
@@ -355,6 +493,71 @@ class MemoryMetrics(ControllerMetrics):
         cache = self._get_memory_stat_counter("cache")
         rss = self._get_memory_stat_counter("rss")
         return cache + rss
+
+    def get_all_slice_metrics_concurrently(self):
+        # memory.usage_in_bytes
+        # memory.kmem.usage_in_bytes
+        # cache 0
+        # rss 0
+        # rss_huge 0
+        # shmem 0
+        # mapped_file 0
+        # dirty 0
+        # writeback 0
+        # swap 0
+        # pgpgin 0
+        # pgpgout 0
+        # pgfault 0
+        # pgmajfault 0
+        # inactive_anon 0
+        # active_anon 0
+        # inactive_file 0
+        # active_file 0
+        # unevictable 0
+        # hierarchical_memory_limit 9223372036854771712
+        # hierarchical_memsw_limit 9223372036854771712
+        # total_cache 147230720
+        # total_rss 0
+        # total_rss_huge 0
+        # total_shmem 0
+        # total_mapped_file 0
+        # total_dirty 53248
+        # total_writeback 0
+        # total_swap 0
+        with open("{0}/memory.usage_in_bytes".format(self.path)) as memory_curr_file, open("{0}/memory.kmem.usage_in_bytes".format(self.path)) as memory_kernel_file, open("{0}/memory.stat".format(self.path)) as memory_stat_file:
+            memory_curr = int(memory_curr_file.readlines()[0])
+            kernel = int(memory_kernel_file.readlines()[0])
+            memory_stat_lines = memory_stat_file.readlines()
+            cache = int(re.match(r'total_cache\s+(\d+)', memory_stat_lines[19]).groups()[0])
+            rss = int(re.match(r'total_rss\s+(\d+)', memory_stat_lines[20]).groups()[0])
+            swap = int(re.match(r'total_swap\s+(\d+)', memory_stat_lines[26]).groups()[0])
+            sum_mem = kernel + cache + rss + swap
+        return "memory.usage_in_bytes: {0}; memory_summed: {1}; rss: {2}; cache: {3}; kernel: {4}; swap: {5}".format(memory_curr, sum_mem, rss, cache, kernel, swap)
+
+
+    def get_all_metrics_concurrently(self):
+        # memory.usage_in_bytes
+        # memory.kmem.usage_in_bytes
+        # cache
+        # rss
+        # swap
+        # sum of cache, rss, kernel, swap
+        # output = run_command(["cat", "", "", ""])
+        # memory_curr = int(output.splitlines()[0])
+        # swap = int(output.splitlines()[1])
+        # anon = int(re.match(r'anon\s+(\d+)', output.splitlines()[2]).groups()[0])
+        # file = int(re.match(r'file\s+(\d+)', output.splitlines()[3]).groups()[0])
+        # kernel = int(re.match(r'kernel\s+(\d+)', output.splitlines()[4]).groups()[0])
+        # sum_mem = swap + anon + file + kernel
+        with open("{0}/memory.usage_in_bytes".format(self.path)) as memory_curr_file, open("{0}/memory.kmem.usage_in_bytes".format(self.path)) as memory_kernel_file, open("{0}/memory.stat".format(self.path)) as memory_stat_file:
+            memory_curr = int(memory_curr_file.readlines()[0])
+            kernel = int(memory_kernel_file.readlines()[0])
+            memory_stat_lines = memory_stat_file.readlines()
+            cache = int(re.match(r'cache\s+(\d+)', memory_stat_lines[0]).groups()[0])
+            rss = int(re.match(r'rss\s+(\d+)', memory_stat_lines[1]).groups()[0])
+            swap = int(re.match(r'swap\s+(\d+)', memory_stat_lines[7]).groups()[0])
+            sum_mem = kernel + cache + rss + swap
+        return "memory.usage_in_bytes: {0}; memory_summed: {1}; rss: {2}; cache: {3}; kernel: {4}; swap: {5}".format(memory_curr, sum_mem, rss, cache, kernel, swap)
 
     def try_swap_memory_usage(self):
         """
@@ -397,8 +600,99 @@ class MemoryMetrics(ControllerMetrics):
             MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.MAX_MEM_USAGE, self.name,
                         self.get_max_memory_usage(), _REPORT_EVERY_HOUR),
             MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.SWAP_MEM_USAGE, self.name,
-                        self.try_swap_memory_usage(), _REPORT_EVERY_HOUR)
+                        self.try_swap_memory_usage(), _REPORT_EVERY_HOUR),
+            MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.TOTAL_SEPARATED, self.name,
+                        self.get_all_metrics_concurrently(), _REPORT_EVERY_HOUR),
         ]
 
-    def get_unit_properties(self):
-        return["MemoryAccounting"]
+
+class MemoryMetricsV2(MemoryMetrics):
+    def get_memory_usage(self):
+        """
+        Collect anon+file from memory.stat cgroup.
+
+        :return: Memory usage in bytes
+        :rtype: int
+        """
+
+        anon = self._get_memory_stat_counter("anon")
+        file = self._get_memory_stat_counter("file")
+        return anon + file
+
+    def get_memory_throttled(self):
+        with open("/sys/fs/cgroup/azure.slice/azure-walinuxagent.slice/azure-walinuxagent-logcollector.slice/collect-logs.scope/memory.events") as scope_events, open("/sys/fs/cgroup/azure.slice/azure-walinuxagent.slice/azure-walinuxagent-logcollector.slice/memory.events") as slice_events:
+            scope_throttled = int(re.match(r'high\s+(\d+)', scope_events.readlines()[1]).groups()[0])
+            slice_throttled = int(re.match(r'high\s+(\d+)', slice_events.readlines()[1]).groups()[0])
+        return "scope mem throttled: {0}; slice mem throttled: {1}".format(scope_throttled, slice_throttled)
+
+    def get_all_metrics_concurrently(self):
+        # memory.current
+        # swap
+        # anon
+        # file
+        # kernel
+        # sum of anon, file, kernel, swap
+        # output = run_command(["cat", "", "", ""])
+        # memory_curr = int(output.splitlines()[0])
+        # swap = int(output.splitlines()[1])
+        # anon = int(re.match(r'anon\s+(\d+)', output.splitlines()[2]).groups()[0])
+        # file = int(re.match(r'file\s+(\d+)', output.splitlines()[3]).groups()[0])
+        # kernel = int(re.match(r'kernel\s+(\d+)', output.splitlines()[4]).groups()[0])
+        # sum_mem = swap + anon + file + kernel
+        with open("{0}/memory.current".format(self.path)) as memory_curr_file, open("{0}/memory.swap.current".format(self.path)) as memory_swap_file, open("{0}/memory.stat".format(self.path)) as memory_stat_file:
+            memory_curr = int(memory_curr_file.readlines()[0])
+            swap = int(memory_swap_file.readlines()[0])
+            memory_stat_lines = memory_stat_file.readlines()
+            anon = int(re.match(r'anon\s+(\d+)', memory_stat_lines[0]).groups()[0])
+            file = int(re.match(r'file\s+(\d+)', memory_stat_lines[1]).groups()[0])
+            kernel = int(re.match(r'kernel\s+(\d+)', memory_stat_lines[2]).groups()[0])
+            sum_mem = swap + anon + file + kernel
+        return "memory.current: {0}; memory_summed: {1}; anon: {2}; file: {3}; kernel: {4}; swap: {5}".format(memory_curr, sum_mem, anon, file, kernel, swap)
+
+    def try_swap_memory_usage(self):
+        """
+        Collect SWAP from memory.swap.current cgroup.
+
+        :return: Memory usage in bytes
+        :rtype: int
+        """
+        usage = 0
+        try:
+            usage = int(self._get_parameters('memory.swap.current', first_line_only=True))
+        except Exception as e:
+            if isinstance(e, (IOError, OSError)) and e.errno == errno.ENOENT:  # pylint: disable=E1101
+                raise
+            raise CGroupsException("Exception while attempting to read {0}".format("memory.swap.current"), e)
+
+        return usage
+
+    def get_max_memory_usage(self):
+        """
+        Collect memory.peak from the cgroup.
+
+        :return: Memory usage in bytes
+        :rtype: int
+        """
+        usage = 0
+        try:
+            usage = int(self._get_parameters('memory.peak', first_line_only=True))
+        except Exception as e:
+            if isinstance(e, (IOError, OSError)) and e.errno == errno.ENOENT:  # pylint: disable=E1101
+                raise
+            raise CGroupsException("Exception while attempting to read {0}".format("memory.peak"), e)
+
+        return usage
+
+    def get_tracked_metrics(self, **_):
+        return [
+            MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.TOTAL_MEM_USAGE, self.name,
+                        self.get_memory_usage()),
+            MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.MAX_MEM_USAGE, self.name,
+                        self.get_max_memory_usage(), _REPORT_EVERY_HOUR),
+            MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.SWAP_MEM_USAGE, self.name,
+                        self.try_swap_memory_usage(), _REPORT_EVERY_HOUR),
+            MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.MEM_THROTTLED, self.name,
+                        self.get_memory_throttled(), _REPORT_EVERY_HOUR),
+            MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.TOTAL_SEPARATED, self.name,
+                        self.get_all_metrics_concurrently(), _REPORT_EVERY_HOUR),
+        ]
