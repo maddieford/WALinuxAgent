@@ -41,6 +41,7 @@ from azurelinuxagent.common.version import get_distro
 CGROUP_FILE_SYSTEM_ROOT = '/sys/fs/cgroup'
 EXTENSION_SLICE_PREFIX = "azure-vmextensions"
 
+
 def log_cgroup_info(formatted_string, op=WALAEventOperation.CGroupsInfo, send_event=True):
     logger.info("[CGI] " + formatted_string)
     if send_event:

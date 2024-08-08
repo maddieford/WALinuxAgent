@@ -49,7 +49,7 @@ from azurelinuxagent.common.version import AGENT_NAME, AGENT_LONG_VERSION, AGENT
     PY_VERSION_MAJOR, PY_VERSION_MINOR, \
     PY_VERSION_MICRO, GOAL_STATE_AGENT_VERSION, \
     get_daemon_version, set_daemon_version
-from azurelinuxagent.ga.collect_logs import get_log_collector_monitor_handler, CollectLogsHandler
+from azurelinuxagent.ga.collect_logs import CollectLogsHandler, get_log_collector_monitor_handler
 from azurelinuxagent.pa.provision.default import ProvisionHandler
 
 
@@ -243,7 +243,6 @@ class Agent(object):
                         break
                 log_collector_monitor = get_log_collector_monitor_handler(tracked_controllers)
                 log_collector_monitor.run()
-
             archive, total_uncompressed_size = log_collector.collect_logs_and_get_archive()
             logger.info("Log collection successfully completed. Archive can be found at {0} "
                   "and detailed log output can be found at {1}".format(archive, OUTPUT_RESULTS_FILE_PATH))

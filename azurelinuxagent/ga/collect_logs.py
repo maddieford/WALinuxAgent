@@ -21,7 +21,6 @@ import os
 import sys
 import threading
 import time
-
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
 
 import azurelinuxagent.common.conf as conf
