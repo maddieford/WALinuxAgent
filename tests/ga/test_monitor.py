@@ -21,7 +21,7 @@ import random
 import string
 
 from azurelinuxagent.common import event, logger
-from azurelinuxagent.ga.controllermetrics import CpuMetrics, MemoryMetrics, MetricValue, _REPORT_EVERY_HOUR
+from azurelinuxagent.ga.cgroupcontroller import CpuController, MemoryController, MetricValue, _REPORT_EVERY_HOUR
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.event import EVENTS_DIRECTORY
 from azurelinuxagent.common.protocol.healthservice import HealthService
@@ -231,7 +231,7 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         ioerror.errno = 2
         patch_get_memory_usage.side_effect = ioerror
 
-        CGroupsTelemetry._tracked["/test/path"] = MemoryMetrics("_cgroup_name", "/test/path")
+        CGroupsTelemetry._tracked["/test/path"] = MemoryController("_cgroup_name", "/test/path")
 
         PollResourceUsage().run()
         self.assertEqual(0, patch_periodic_warn.call_count)
@@ -247,7 +247,7 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         ioerror.errno = 2
         patch_cpu_usage.side_effect = ioerror
 
-        CGroupsTelemetry._tracked["/test/path"] = CpuMetrics("_cgroup_name", "/test/path")
+        CGroupsTelemetry._tracked["/test/path"] = CpuController("_cgroup_name", "/test/path")
 
         PollResourceUsage().run()
         self.assertEqual(0, patch_periodic_warn.call_count)

@@ -26,7 +26,7 @@ from azurelinuxagent.ga import logcollector, cgroupconfigurator
 from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.cgroupapi import InvalidCgroupMountpointException, CgroupV1
 from azurelinuxagent.ga.collect_logs import CollectLogsHandler
-from azurelinuxagent.ga.controllermetrics import AGENT_LOG_COLLECTOR
+from azurelinuxagent.ga.cgroupcontroller import AGENT_LOG_COLLECTOR
 from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment
 from tests.lib.tools import AgentTestCase, data_dir, Mock, patch
 
@@ -47,7 +47,7 @@ Debug.CgroupDisableOnQuotaCheckFailure = True
 Debug.CgroupLogMetrics = False
 Debug.CgroupMonitorExpiryTime = 2022-03-31
 Debug.CgroupMonitorExtensionName = Microsoft.Azure.Monitor.AzureMonitorLinuxAgent
-Debug.CgroupV2CollectLogs = False
+Debug.EnableCgroupV2ResourceLimiting = False
 Debug.EnableAgentMemoryUsageCheck = False
 Debug.EnableFastTrack = True
 Debug.EnableGAVersioning = True

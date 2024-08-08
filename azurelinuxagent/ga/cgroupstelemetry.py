@@ -17,7 +17,7 @@ import errno
 import threading
 
 from azurelinuxagent.common import logger
-from azurelinuxagent.ga.controllermetrics import CpuMetrics
+from azurelinuxagent.ga.cpucontroller import _CpuController
 from azurelinuxagent.common.future import ustr
 
 
@@ -41,7 +41,7 @@ class CGroupsTelemetry(object):
         """
         Adds the given item to the dictionary of tracked cgroups
         """
-        if isinstance(cgroup, CpuMetrics):
+        if isinstance(cgroup, _CpuController):
             # set the current cpu usage
             cgroup.initialize_cpu_usage()
 

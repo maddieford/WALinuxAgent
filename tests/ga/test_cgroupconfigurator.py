@@ -27,7 +27,7 @@ import time
 import threading
 
 from azurelinuxagent.common import conf
-from azurelinuxagent.ga.controllermetrics import AGENT_NAME_TELEMETRY, MetricsCounter, MetricValue, MetricsCategory, CpuMetrics
+from azurelinuxagent.ga.cgroupcontroller import AGENT_NAME_TELEMETRY, MetricsCounter, MetricValue, MetricsCategory, CpuController
 from azurelinuxagent.ga.cgroupconfigurator import CGroupConfigurator, DisableCgroups
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.event import WALAEventOperation
@@ -272,7 +272,7 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
 
                 CGroupsTelemetry._tracked['/sys/fs/cgroup/cpu,cpuacct/azure.slice/azure-vmextensions.slice/' \
                                           'azure-vmextensions-Microsoft.CPlat.Extension.slice'] = \
-                    CpuMetrics('Microsoft.CPlat.Extension',
+                    CpuController('Microsoft.CPlat.Extension',
                               '/sys/fs/cgroup/cpu,cpuacct/azure.slice/azure-vmextensions.slice/azure-vmextensions-Microsoft.CPlat.Extension.slice')
 
                 configurator.remove_extension_slice(extension_name="Microsoft.CPlat.Extension")
@@ -369,10 +369,10 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
                 configurator.setup_extension_slice(extension_name=extension_name, cpu_quota=5)
                 configurator.set_extension_services_cpu_memory_quota(service_list)
                 CGroupsTelemetry._tracked['/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service'] = \
-                    CpuMetrics('extension.service', '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service')
+                    CpuController('extension.service', '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service')
                 CGroupsTelemetry._tracked['/sys/fs/cgroup/cpu,cpuacct/azure.slice/azure-vmextensions.slice/' \
                                           'azure-vmextensions-Microsoft.CPlat.Extension.slice'] = \
-                    CpuMetrics('Microsoft.CPlat.Extension',
+                    CpuController('Microsoft.CPlat.Extension',
                               '/sys/fs/cgroup/cpu,cpuacct/azure.slice/azure-vmextensions.slice/azure-vmextensions-Microsoft.CPlat.Extension.slice')
 
                 configurator.disable("UNIT TEST", DisableCgroups.ALL)
@@ -717,7 +717,7 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
         with self._get_cgroup_configurator() as configurator:
             with patch("os.path.exists") as mock_path:
                 mock_path.return_value = True
-                CGroupsTelemetry.track_cgroup(CpuMetrics('extension.service', '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service'))
+                CGroupsTelemetry.track_cgroup(CpuController('extension.service', '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service'))
                 configurator.stop_tracking_extension_services_cgroups(service_list)
 
                 tracked = CGroupsTelemetry._tracked
@@ -776,7 +776,7 @@ class CGroupConfiguratorSystemdTestCase(AgentTestCase):
             with patch("os.path.exists") as mock_path:
                 mock_path.side_effect = side_effect
                 CGroupsTelemetry._tracked['/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service'] = \
-                    CpuMetrics('extension.service', '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service')
+                    CpuController('extension.service', '/sys/fs/cgroup/cpu,cpuacct/system.slice/extension.service')
                 configurator.stop_tracking_unit_cgroups("extension.service")
 
                 tracked = CGroupsTelemetry._tracked

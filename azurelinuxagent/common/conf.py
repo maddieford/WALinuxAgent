@@ -147,7 +147,7 @@ __SWITCH_OPTIONS__ = {
     "Debug.EnableAgentMemoryUsageCheck": False,
     "Debug.EnableFastTrack": True,
     "Debug.EnableGAVersioning": True,
-    "Debug.CgroupV2CollectLogs": False
+    "Debug.EnableCgroupV2ResourceLimiting": False
 }
 
 
@@ -201,7 +201,8 @@ __INTEGER_OPTIONS__ = {
     "Debug.EtpCollectionPeriod": 300,
     "Debug.AutoUpdateHotfixFrequency": 14400,
     "Debug.AutoUpdateNormalFrequency": 86400,
-    "Debug.FirewallRulesLogPeriod": 86400
+    "Debug.FirewallRulesLogPeriod": 86400,
+    "Debug.InitialLogCollectionDelay": 5 * 60
 }
 
 
@@ -683,9 +684,17 @@ def get_firewall_rules_log_period(conf=__conf__):
     return conf.get_int("Debug.FirewallRulesLogPeriod", 86400)
 
 
-def get_cgroup_v2_collect_logs(conf=__conf__):
+def get_enable_cgroup_v2_resource_limiting(conf=__conf__):
     """
-    If True, the agent will attempt to run the log collector periodically on machines which use cgroup v2.
+    If True, the agent will enable resource monitoring and enforcement for the log collector on machines using cgroup v2.
     NOTE: This option is experimental and may be removed in later versions of the Agent.
     """
-    return conf.get_switch("Debug.CgroupV2CollectLogs", False)
+    return conf.get_switch("Debug.EnableCgroupV2ResourceLimiting", False)
+
+
+def get_initial_logcollection_delay(conf=__conf__):
+    """
+    Determines the amount of time in seconds to delay the first log collector run after service start.
+    NOTE: This option is experimental and may be removed in later versions of the Agent.
+    """
+    return conf.get_int("Debug.InitialLogCollectionDelay", 5 * 60)

@@ -19,6 +19,7 @@
 
 from tests_e2e.tests.lib.agent_test import AgentVmTest
 from tests_e2e.tests.lib.logging import log
+from tests_e2e.tests.lib.ssh_client import SshClient
 
 
 class PassTest(AgentVmTest):
@@ -26,6 +27,9 @@ class PassTest(AgentVmTest):
     A trivial test that passes.
     """
     def run(self):
+        ssh_client: SshClient = self._context.create_ssh_client()
+        output = ssh_client.run_command(
+            "update-waagent-conf Debug.EnableCgroupV2ResourceLimiting=y Debug.InitialLogCollectionDelay=60", use_sudo=True)
         log.info("* PASSED *")
 
 

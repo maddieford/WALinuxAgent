@@ -19,7 +19,7 @@ import os
 import random
 import time
 
-from azurelinuxagent.ga.controllermetrics import CpuMetrics, MemoryMetrics
+from azurelinuxagent.ga.cgroupcontroller import CpuController, MemoryController
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.utils import fileutil
 from tests.lib.tools import AgentTestCase, data_dir, patch
@@ -105,10 +105,10 @@ class TestCGroupsTelemetry(AgentTestCase):
     @staticmethod
     def _track_new_extension_cgroups(num_extensions):
         for i in range(num_extensions):
-            dummy_cpu_cgroup = CpuMetrics("dummy_extension_{0}".format(i), "dummy_cpu_path_{0}".format(i))
+            dummy_cpu_cgroup = CpuController("dummy_extension_{0}".format(i), "dummy_cpu_path_{0}".format(i))
             CGroupsTelemetry.track_cgroup(dummy_cpu_cgroup)
 
-            dummy_memory_cgroup = MemoryMetrics("dummy_extension_{0}".format(i), "dummy_memory_path_{0}".format(i))
+            dummy_memory_cgroup = MemoryController("dummy_extension_{0}".format(i), "dummy_memory_path_{0}".format(i))
             CGroupsTelemetry.track_cgroup(dummy_memory_cgroup)
 
     def _assert_cgroups_are_tracked(self, num_extensions):
@@ -396,7 +396,7 @@ class TestCGroupsTelemetry(AgentTestCase):
         cpu_percent_values.append(-1)
         cpu_throttled_values = [random.randint(0, 60 * 60) for _ in range(num_polls)]
 
-        dummy_cpu_cgroup = CpuMetrics("dummy_extension_name", "dummy_cpu_path")
+        dummy_cpu_cgroup = CpuController("dummy_extension_name", "dummy_cpu_path")
         CGroupsTelemetry.track_cgroup(dummy_cpu_cgroup)
         self.assertEqual(1, len(CGroupsTelemetry._tracked))
 

@@ -545,7 +545,7 @@ class EventLogger(object):
         event.parameters.append(TelemetryEventParam(GuestAgentPerfCounterEventsSchema.Category, str_to_encoded_ustr(category)))
         event.parameters.append(TelemetryEventParam(GuestAgentPerfCounterEventsSchema.Counter, str_to_encoded_ustr(counter)))
         event.parameters.append(TelemetryEventParam(GuestAgentPerfCounterEventsSchema.Instance, str_to_encoded_ustr(instance)))
-        event.parameters.append(TelemetryEventParam(GuestAgentPerfCounterEventsSchema.Value, value))
+        event.parameters.append(TelemetryEventParam(GuestAgentPerfCounterEventsSchema.Value, float(value)))
         self.add_common_event_parameters(event, datetime.utcnow())
 
         data = get_properties(event)
@@ -666,7 +666,7 @@ def report_metric(category, counter, instance, value, log_event=False, reporter=
         _log_event(AGENT_NAME, "METRIC", message, 0)
         return
     try:
-        reporter.add_metric(category, counter, instance, value, log_event)
+        reporter.add_metric(category, counter, instance, float(value), log_event)
     except ValueError:
         logger.periodic_warn(logger.EVERY_HALF_HOUR, "[PERIODIC] Cannot cast the metric value. Details of the Metric - "
                                                      "{0}/{1} [{2}] = {3}".format(category, counter, instance, value))
