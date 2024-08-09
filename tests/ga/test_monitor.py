@@ -21,12 +21,13 @@ import random
 import string
 
 from azurelinuxagent.common import event, logger
-from azurelinuxagent.ga.cgroupcontroller import CpuController, MemoryController, MetricValue, _REPORT_EVERY_HOUR
+from azurelinuxagent.ga.cgroupcontroller import MetricValue, _REPORT_EVERY_HOUR
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.event import EVENTS_DIRECTORY
 from azurelinuxagent.common.protocol.healthservice import HealthService
 from azurelinuxagent.common.protocol.util import ProtocolUtil
 from azurelinuxagent.common.protocol.wire import WireProtocol
+from azurelinuxagent.ga.cpucontroller import CpuControllerV1
 from azurelinuxagent.ga.monitor import get_monitor_handler, PeriodicOperation, SendImdsHeartbeat, \
     ResetPeriodicLogMessages, SendHostPluginHeartbeat, PollResourceUsage, \
     ReportNetworkErrors, ReportNetworkConfigurationChanges, PollSystemWideResourceUsage
@@ -238,7 +239,7 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         self.assertEqual(0, patch_add_metric.call_count)  # No metrics should be sent.
 
     @patch('azurelinuxagent.common.event.EventLogger.add_metric')
-    @patch("azurelinuxagent.ga.controllermetrics.CpuMetrics.get_cpu_usage")
+    @patch("azurelinuxagent.ga.cpucontroller.CpuControllerV1.get_cpu_usage")
     @patch('azurelinuxagent.common.logger.Logger.periodic_warn')
     def test_send_extension_metrics_telemetry_handling_cpu_cgroup_exceptions_errno2(self, patch_periodic_warn,  # pylint: disable=unused-argument
                                                                                     patch_cpu_usage, patch_add_metric,
@@ -247,7 +248,7 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         ioerror.errno = 2
         patch_cpu_usage.side_effect = ioerror
 
-        CGroupsTelemetry._tracked["/test/path"] = CpuController("_cgroup_name", "/test/path")
+        CGroupsTelemetry._tracked["/test/path"] = CpuControllerV1("_cgroup_name", "/test/path")
 
         PollResourceUsage().run()
         self.assertEqual(0, patch_periodic_warn.call_count)

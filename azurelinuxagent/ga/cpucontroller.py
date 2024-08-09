@@ -237,7 +237,7 @@ class CpuControllerV2(_CpuController):
             match = re_v2_usage_time.match(cpu_stat)
             if not match:
                 raise CGroupsException("The contents of {0} are invalid: {1}".format(self._get_cgroup_file('cpu.stat'), cpu_stat))
-            cpu_time = int(match.groups()[0])/1E6
+            cpu_time = int(match.groups()[0]) / 1E6
 
         return cpu_time
 

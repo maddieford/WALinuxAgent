@@ -186,9 +186,9 @@ def _create_log_collector_monitor_handler(iterations=1):
 
             def mock_read_file(filepath, **args):
                 if filepath == "/proc/stat":
-                    filepath = os.path.join(data_dir, "cgroups", "proc_stat_t0")
+                    filepath = os.path.join(data_dir, "cgroups", "v1", "proc_stat_t0")
                 elif filepath.endswith("/cpuacct.stat"):
-                    filepath = os.path.join(data_dir, "cgroups", "cpuacct.stat_t0")
+                    filepath = os.path.join(data_dir, "cgroups", "v1", "cpuacct.stat_t0")
                 return original_read_file(filepath, **args)
 
             with patch("azurelinuxagent.common.utils.fileutil.read_file", side_effect=mock_read_file):

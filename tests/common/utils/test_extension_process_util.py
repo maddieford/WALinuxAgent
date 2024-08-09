@@ -149,7 +149,7 @@ class TestProcessUtils(AgentTestCase):
                 with patch('time.sleep') as mock_sleep:
                     with self.assertRaises(ExtensionError) as context_manager:
                         test_file = os.path.join(self.tmp_dir, "cpu.stat")
-                        shutil.copyfile(os.path.join(data_dir, "cgroups", "cpu.stat_t0"),
+                        shutil.copyfile(os.path.join(data_dir, "cgroups", "v1", "cpu.stat_t0"),
                                         test_file)  # throttled_time = 50
                         cgroup = CpuController("test", self.tmp_dir)
                         process = subprocess.Popen(command,  # pylint: disable=subprocess-popen-preexec-fn
