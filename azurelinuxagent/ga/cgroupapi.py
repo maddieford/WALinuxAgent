@@ -410,7 +410,7 @@ class SystemdCgroupApiv1(_SystemdCgroupApi):
             for controller in cgroup.get_controllers():
                 if isinstance(controller, _CpuController):
                     cpu_controller = controller
-                CGroupsTelemetry.track_cgroup(controller)
+                CGroupsTelemetry.track_cgroup_controller(controller)
 
         except IOError as e:
             if e.errno == 2:  # 'No such file or directory'

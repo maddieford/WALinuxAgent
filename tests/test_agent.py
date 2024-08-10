@@ -47,12 +47,13 @@ Debug.CgroupDisableOnQuotaCheckFailure = True
 Debug.CgroupLogMetrics = False
 Debug.CgroupMonitorExpiryTime = 2022-03-31
 Debug.CgroupMonitorExtensionName = Microsoft.Azure.Monitor.AzureMonitorLinuxAgent
-Debug.EnableCgroupV2ResourceLimiting = False
 Debug.EnableAgentMemoryUsageCheck = False
+Debug.EnableCgroupV2ResourceLimiting = False
 Debug.EnableFastTrack = True
 Debug.EnableGAVersioning = True
 Debug.EtpCollectionPeriod = 300
 Debug.FirewallRulesLogPeriod = 86400
+Debug.InitialLogCollectionDelay = 300
 DetectScvmmEnv = False
 EnableOverProvisioning = True
 Extension.LogDir = /var/log/azure
@@ -233,7 +234,7 @@ class TestAgent(AgentTestCase):
     @patch("azurelinuxagent.agent.LogCollector")
     def test_calls_collect_logs_with_proper_mode(self, mock_log_collector, *args):  # pylint: disable=unused-argument
         agent = Agent(False, conf_file_path=os.path.join(data_dir, "test_waagent.conf"))
-        mock_log_collector.run = Mock()
+        mock_log_collector.return_value.collect_logs_and_get_archive.return_value = (Mock(), Mock())    # LogCollector.collect_logs_and_get_archive returns a tuple
 
         agent.collect_logs(is_full_mode=True)
         full_mode = mock_log_collector.call_args_list[0][0][0]
@@ -247,7 +248,7 @@ class TestAgent(AgentTestCase):
     def test_calls_collect_logs_on_valid_cgroups_v1(self, mock_log_collector):
         try:
             CollectLogsHandler.enable_monitor_cgroups_check()
-            mock_log_collector.run = Mock()
+            mock_log_collector.return_value.collect_logs_and_get_archive.return_value = (Mock(), Mock())    # LogCollector.collect_logs_and_get_archive returns a tuple
 
             # Mock cgroup so process is in the log collector slice
             def mock_cgroup(*args, **kwargs):   # pylint: disable=W0613

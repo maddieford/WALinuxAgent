@@ -204,19 +204,19 @@ class CGroupConfigurator(object):
                     self.disable(reason, DisableCgroups.ALL)
                     return
 
-                # Get metrics to track
-                metrics = self._agent_cgroup.get_controllers(expected_relative_path=os.path.join(agent_slice, systemd.get_agent_unit_name()))
-                if len(metrics) > 0:
+                # Get controllers to track
+                agent_controllers = self._agent_cgroup.get_controllers(expected_relative_path=os.path.join(agent_slice, systemd.get_agent_unit_name()))
+                if len(agent_controllers) > 0:
                     self.enable()
 
-                for metric in metrics:
-                    for prop in metric.get_unit_properties():
+                for controller in agent_controllers:
+                    for prop in controller.get_unit_properties():
                         log_cgroup_info('Agent {0} unit property value: {1}'.format(prop, systemd.get_unit_property(systemd.get_agent_unit_name(), prop)))
-                    if isinstance(metric, _CpuController):
+                    if isinstance(controller, _CpuController):
                         self.__set_cpu_quota(conf.get_agent_cpu_quota())
-                    elif isinstance(metric, _MemoryController):
-                        self._agent_memory_metrics = metric
-                    CGroupsTelemetry.track_cgroup(metric)
+                    elif isinstance(controller, _MemoryController):
+                        self._agent_memory_metrics = controller
+                    CGroupsTelemetry.track_cgroup_controller(controller)
 
             except Exception as exception:
                 log_cgroup_warning("Error initializing cgroups: {0}".format(ustr(exception)))
@@ -746,7 +746,7 @@ class CGroupConfigurator(object):
                 controllers = cgroup.get_controllers()
 
                 for controller in controllers:
-                    CGroupsTelemetry.track_cgroup(controller)
+                    CGroupsTelemetry.track_cgroup_controller(controller)
 
             except Exception as exception:
                 log_cgroup_info("Failed to start tracking resource usage for the extension: {0}".format(ustr(exception)), send_event=False)

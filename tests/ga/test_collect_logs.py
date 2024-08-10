@@ -18,13 +18,15 @@ import contextlib
 import os
 
 from azurelinuxagent.common import logger, conf
-from azurelinuxagent.ga.cgroupcontroller import CpuController, MemoryController, MetricValue
+from azurelinuxagent.ga.cgroupcontroller import MetricValue
 from azurelinuxagent.ga.cgroupconfigurator import CGroupConfigurator
 from azurelinuxagent.common.logger import Logger
 from azurelinuxagent.common.protocol.util import ProtocolUtil
 from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.collect_logs import get_collect_logs_handler, is_log_collection_allowed, \
     get_log_collector_monitor_handler
+from azurelinuxagent.ga.cpucontroller import CpuControllerV1
+from azurelinuxagent.ga.memorycontroller import MemoryControllerV1
 from tests.lib.mock_wire_protocol import mock_wire_protocol, MockHttpResponse
 from tests.lib.http_request_predicates import HttpRequestPredicates
 from tests.lib.wire_protocol_data import DATA_FILE
@@ -197,8 +199,8 @@ def _create_log_collector_monitor_handler(iterations=1):
                     monitor_log_collector.join()
 
                 cgroups = [
-                    CpuController("test", "dummy_cpu_path"),
-                    MemoryController("test", "dummy_memory_path")
+                    CpuControllerV1("test", "dummy_cpu_path"),
+                    MemoryControllerV1("test", "dummy_memory_path")
                 ]
                 monitor_log_collector = get_log_collector_monitor_handler(cgroups)
                 monitor_log_collector.run_and_wait = run_and_wait
@@ -221,19 +223,16 @@ class TestLogCollectorMonitorHandler(AgentTestCase):
             self.assertEqual(1, patch_poll_resource_usage.call_count)
             self.assertEqual(5, patch_add_metric.call_count)  # Five metrics being sent.
 
-    @patch("os._exit", side_effect=Exception)
+    @patch("os._exit")
     @patch("azurelinuxagent.ga.collect_logs.LogCollectorMonitorHandler._poll_resource_usage")
     def test_verify_log_collector_memory_limit_exceeded(self, patch_poll_resource_usage, mock_exit):
         with _create_log_collector_monitor_handler() as log_collector_monitor_handler:
-            with patch("azurelinuxagent.ga.cgroupconfigurator.LOGCOLLECTOR_MEMORY_LIMIT", 8):
-                patch_poll_resource_usage.return_value = [MetricValue("Process", "% Processor Time", "service", 1),
-                                                          MetricValue("Process", "Throttled Time", "service", 1),
-                                                          MetricValue("Memory", "Total Memory Usage", "service", 9),
-                                                          MetricValue("Memory", "Max Memory Usage", "service", 7),
-                                                          MetricValue("Memory", "Swap Memory Usage", "service", 0)
-
-                                                          ]
-                try:
-                    log_collector_monitor_handler.run_and_wait()
-                except Exception:
-                    self.assertEqual(mock_exit.call_count, 1)
+            patch_poll_resource_usage.return_value = [MetricValue("Process", "% Processor Time", "service", 4.5),
+                                                      MetricValue("Process", "Throttled Time", "service", 10.281),
+                                                      MetricValue("Memory", "Total Memory Usage", "service", 170 * 1024 ** 2),
+                                                      MetricValue("Memory", "Anon Memory Usage", "service", 15 * 1024 ** 2),
+                                                      MetricValue("Memory", "Cache Memory Usage", "service", 155 * 1024 ** 2),
+                                                      MetricValue("Memory", "Max Memory Usage", "service", 171 * 1024 ** 2),
+                                                      MetricValue("Memory", "Swap Memory Usage", "service", 0)]
+            log_collector_monitor_handler.run_and_wait()
+            self.assertEqual(mock_exit.call_count, 1)

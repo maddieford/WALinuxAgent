@@ -19,9 +19,9 @@ import shutil
 import subprocess
 import tempfile
 
-from azurelinuxagent.ga.cgroupcontroller import CpuController
 from azurelinuxagent.common.exception import ExtensionError, ExtensionErrorCodes
 from azurelinuxagent.common.future import ustr
+from azurelinuxagent.ga.cpucontroller import CpuControllerV1
 from azurelinuxagent.ga.extensionprocessutil import format_stdout_stderr, read_output, \
     wait_for_process_completion_or_timeout, handle_process_completion
 from tests.lib.tools import AgentTestCase, patch, data_dir
@@ -151,7 +151,7 @@ class TestProcessUtils(AgentTestCase):
                         test_file = os.path.join(self.tmp_dir, "cpu.stat")
                         shutil.copyfile(os.path.join(data_dir, "cgroups", "v1", "cpu.stat_t0"),
                                         test_file)  # throttled_time = 50
-                        cgroup = CpuController("test", self.tmp_dir)
+                        cpu_controller = CpuControllerV1("test", self.tmp_dir)
                         process = subprocess.Popen(command,  # pylint: disable=subprocess-popen-preexec-fn
                                                    shell=True,
                                                    cwd=self.tmp_dir,
@@ -161,7 +161,7 @@ class TestProcessUtils(AgentTestCase):
                                                    preexec_fn=os.setsid)
 
                         handle_process_completion(process=process, command=command, timeout=timeout, stdout=stdout,
-                                                  stderr=stderr, error_code=42, cpu_metrics=cgroup)
+                                                  stderr=stderr, error_code=42, cpu_controller=cpu_controller)
 
                     # We're mocking sleep to avoid prolonging the test execution time, but we still want to make sure
                     # we're "waiting" the correct amount of time before killing the process and raising an exception

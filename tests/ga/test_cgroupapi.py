@@ -28,7 +28,8 @@ from azurelinuxagent.ga.cgroupapi import SystemdCgroupApiv1, SystemdCgroupApiv2,
 from azurelinuxagent.ga.cgroupstelemetry import CGroupsTelemetry
 from azurelinuxagent.common.osutil import systemd
 from azurelinuxagent.common.utils import fileutil
-from azurelinuxagent.ga.cgroupcontroller import CpuController, MemoryController
+from azurelinuxagent.ga.cpucontroller import CpuControllerV1
+from azurelinuxagent.ga.memorycontroller import MemoryControllerV1
 from tests.lib.mock_cgroup_environment import mock_cgroup_v1_environment, mock_cgroup_v2_environment, \
     mock_cgroup_hybrid_environment
 from tests.lib.mock_environment import MockCommand
@@ -541,10 +542,10 @@ class CgroupsApiv1TestCase(AgentTestCase):
             cgroup = get_cgroup_api().get_process_cgroup(process_id="self", cgroup_name="walinuxagent")
             controllers = cgroup.get_controllers()
             self.assertEqual(len(controllers), 2)
-            self.assertIsInstance(controllers[0], CpuController)
+            self.assertIsInstance(controllers[0], CpuControllerV1)
             self.assertEqual(controllers[0].name, "walinuxagent")
             self.assertEqual(controllers[0].path, "/sys/fs/cgroup/cpu,cpuacct/system.slice/walinuxagent.service")
-            self.assertIsInstance(controllers[1], MemoryController)
+            self.assertIsInstance(controllers[1], MemoryControllerV1)
             self.assertEqual(controllers[1].name, "walinuxagent")
             self.assertEqual(controllers[1].path, "/sys/fs/cgroup/memory/system.slice/walinuxagent.service")
 
@@ -554,7 +555,7 @@ class CgroupsApiv1TestCase(AgentTestCase):
                 cgroup = get_cgroup_api().get_process_cgroup(process_id="self", cgroup_name="walinuxagent")
                 controllers = cgroup.get_controllers()
                 self.assertEqual(len(controllers), 1)
-                self.assertIsInstance(controllers[0], CpuController)
+                self.assertIsInstance(controllers[0], CpuControllerV1)
                 self.assertEqual(controllers[0].name, "walinuxagent")
                 self.assertEqual(controllers[0].path, "/sys/fs/cgroup/cpu,cpuacct/system.slice/walinuxagent.service")
 
@@ -562,7 +563,7 @@ class CgroupsApiv1TestCase(AgentTestCase):
                 cgroup = get_cgroup_api().get_process_cgroup(process_id="self", cgroup_name="walinuxagent")
                 controllers = cgroup.get_controllers()
                 self.assertEqual(len(controllers), 1)
-                self.assertIsInstance(controllers[0], MemoryController)
+                self.assertIsInstance(controllers[0], MemoryControllerV1)
                 self.assertEqual(controllers[0].name, "walinuxagent")
                 self.assertEqual(controllers[0].path, "/sys/fs/cgroup/memory/system.slice/walinuxagent.service")
 
@@ -577,7 +578,7 @@ class CgroupsApiv1TestCase(AgentTestCase):
                 cgroup = get_cgroup_api().get_process_cgroup(process_id="self", cgroup_name="walinuxagent")
                 controllers = cgroup.get_controllers(expected_relative_path="system.slice/walinuxagent.service")
                 self.assertEqual(len(controllers), 1)
-                self.assertIsInstance(controllers[0], CpuController)
+                self.assertIsInstance(controllers[0], CpuControllerV1)
                 self.assertEqual(controllers[0].name, "walinuxagent")
                 self.assertEqual(controllers[0].path, "/sys/fs/cgroup/cpu,cpuacct/system.slice/walinuxagent.service")
 
