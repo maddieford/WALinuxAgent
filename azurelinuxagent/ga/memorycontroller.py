@@ -69,21 +69,13 @@ class _MemoryController(_CgroupController):
 
         raise CounterNotFound("Cannot find counter: {0}".format(counter_name))
 
-    def get_anon_memory_usage(self):
+    def get_memory_usage(self):
         """
-        Collects anon usage for the cgroup
+        Collects anon and cache usage for the cgroup and returns as a tuple
+        Returns anon and cache memory usage for the cgroup as a tuple ->  (anon, cache)
 
-        :return: Memory usage in bytes
-        :rtype: int
-        """
-        raise NotImplementedError()
-
-    def get_cache_memory_usage(self):
-        """
-        Collects cache usage for the cgroup
-
-        :return: Memory usage in bytes
-        :rtype: int
+        :return: Anon and cache memory usage in bytes
+        :rtype: tuple[int, int]
         """
         raise NotImplementedError()
 
@@ -107,8 +99,7 @@ class _MemoryController(_CgroupController):
 
     def get_tracked_metrics(self, **_):
         # The log collector monitor tracks anon and cache memory separately.
-        anon_mem_usage = self.get_anon_memory_usage()
-        cache_mem_usage = self.get_cache_memory_usage()
+        anon_mem_usage, cache_mem_usage = self.get_memory_usage()
         total_mem_usage = anon_mem_usage + cache_mem_usage
         return [
             MetricValue(MetricsCategory.MEMORY_CATEGORY, MetricsCounter.TOTAL_MEM_USAGE, self.name, total_mem_usage),
@@ -125,12 +116,9 @@ class _MemoryController(_CgroupController):
 
 
 class MemoryControllerV1(_MemoryController):
-    def get_anon_memory_usage(self):
+    def get_memory_usage(self):
         # In v1, anon memory is reported in the 'rss' counter
-        return self._get_memory_stat_counter("rss")
-
-    def get_cache_memory_usage(self):
-        return self._get_memory_stat_counter("cache")
+        return self._get_memory_stat_counter("rss"), self._get_memory_stat_counter("cache")
 
     def try_swap_memory_usage(self):
         # In v1, swap memory should be collected from memory.stat, because memory.memsw.usage_in_bytes reports total Memory+SWAP.
@@ -157,12 +145,9 @@ class MemoryControllerV1(_MemoryController):
 
 
 class MemoryControllerV2(_MemoryController):
-    def get_anon_memory_usage(self):
-        return self._get_memory_stat_counter("anon")
-
-    def get_cache_memory_usage(self):
+    def get_memory_usage(self):
         # In v2, cache memory is reported in the 'file' counter
-        return self._get_memory_stat_counter("file")
+        return self._get_memory_stat_counter("anon"), self._get_memory_stat_counter("file")
 
     def get_memory_throttled_events(self):
         """

@@ -286,15 +286,7 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
         self.should_run = True
         self.period = 2  # Log collector monitor runs every 2 secs.
         self.controllers = controllers
-        self.max_recorded_metrics = {
-            MetricsCounter.ANON_MEM_USAGE: 0,
-            MetricsCounter.CACHE_MEM_USAGE: 0,
-            MetricsCounter.MEM_THROTTLED: 0,
-            MetricsCounter.PROCESSOR_PERCENT_TIME: 0.0
-        }   # These are the max metrics we want to always send telemetry for at the end of a log collector run
-        self.total_recorded_metrics = {
-            MetricsCounter.THROTTLED_TIME: 0.0
-        }   # These are the summed metrics we want to always send telemetry for at the end of a log collector run
+        self.max_recorded_metrics = {}
         self.__log_metrics = conf.get_cgroup_log_metrics()
 
     def run(self):
@@ -321,6 +313,7 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
         self.event_thread.start()
 
     def daemon(self):
+        time.sleep(0.1)
         try:
             while not self.stopped():
                 try:
@@ -338,24 +331,22 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
                 ustr(e))
 
     def get_metrics_summary(self):
-        return "max anon memory (b) = {0}; max cache memory (b) = {1}; total memory throttled events = {2}; max cpu usage = {3}%; total cpu throttled time (s) = {4}"\
-            .format(self.max_recorded_metrics.get(MetricsCounter.ANON_MEM_USAGE),
-                    self.max_recorded_metrics.get(MetricsCounter.CACHE_MEM_USAGE),
-                    self.max_recorded_metrics.get(MetricsCounter.MEM_THROTTLED),
-                    self.max_recorded_metrics.get(MetricsCounter.PROCESSOR_PERCENT_TIME),
-                    self.total_recorded_metrics.get(MetricsCounter.THROTTLED_TIME))
+        summary_string = ""
+        for metric, max_value in self.max_recorded_metrics.items():
+            summary_string += "{0}={1};".format(metric, max_value)
+        return summary_string
 
     def _poll_resource_usage(self):
         metrics = []
         for controller in self.controllers:
             metrics.extend(controller.get_tracked_metrics(track_throttled_time=True))
+
         for metric in metrics:
             current_max = self.max_recorded_metrics.get(metric.counter)
             if current_max is not None:
                 self.max_recorded_metrics[metric.counter] = max(current_max, metric.value)
-            current_sum = self.total_recorded_metrics.get(metric.counter)
-            if current_sum is not None:
-                self.total_recorded_metrics[metric.counter] = current_sum + metric.value
+            else:
+                self.max_recorded_metrics[metric.counter] = metric.value
 
         return metrics
 

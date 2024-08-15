@@ -255,7 +255,7 @@ class Agent(object):
                 log_collector_monitor.stop()
 
                 try:
-                    msg = "Resource usage summary: total uncompressed file size (b) = {0}; {1}".format(
+                    msg = "Resource usage summary: total uncompressed file size={0}; {1}".format(
                         total_uncompressed_size, log_collector_monitor.get_metrics_summary())
                     logger.info(msg)
                     event.add_event(op=event.WALAEventOperation.LogCollection, message=msg, log_event=False)

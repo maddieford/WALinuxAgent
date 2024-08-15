@@ -224,14 +224,14 @@ class TestExtensionMetricsDataTelemetry(AgentTestCase):
         self.assertEqual(0, patch_add_metric.call_count)
 
     @patch('azurelinuxagent.common.event.EventLogger.add_metric')
-    @patch("azurelinuxagent.ga.memorycontroller.MemoryControllerV1.get_anon_memory_usage")
+    @patch("azurelinuxagent.ga.memorycontroller.MemoryControllerV1.get_memory_usage")
     @patch('azurelinuxagent.common.logger.Logger.periodic_warn')
     def test_send_extension_metrics_telemetry_handling_memory_cgroup_exceptions_errno2(self, patch_periodic_warn,  # pylint: disable=unused-argument
-                                                                                       get_anon_memory_usage,
+                                                                                       get_memory_usage,
                                                                                        patch_add_metric, *args):
         ioerror = IOError()
         ioerror.errno = 2
-        get_anon_memory_usage.side_effect = ioerror
+        get_memory_usage.side_effect = ioerror
 
         CGroupsTelemetry._tracked["/test/path"] = MemoryControllerV1("_cgroup_name", "/test/path")
 

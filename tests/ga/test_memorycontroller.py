@@ -30,10 +30,8 @@ class TestMemoryControllerV1(AgentTestCase):
     def test_get_metrics_v1(self):
         test_mem_controller = MemoryControllerV1("test_extension", os.path.join(data_dir, "cgroups", "v1"))
 
-        rss_memory_usage = test_mem_controller.get_anon_memory_usage()
+        rss_memory_usage, cache_memory_usage = test_mem_controller.get_memory_usage()
         self.assertEqual(100000, rss_memory_usage)
-
-        cache_memory_usage = test_mem_controller.get_cache_memory_usage()
         self.assertEqual(50000, cache_memory_usage)
 
         max_memory_usage = test_mem_controller.get_max_memory_usage()
@@ -46,12 +44,7 @@ class TestMemoryControllerV1(AgentTestCase):
         test_mem_controller = MemoryControllerV1("test_extension", os.path.join(data_dir, "cgroups"))
 
         with self.assertRaises(IOError) as e:
-            test_mem_controller.get_anon_memory_usage()
-
-        self.assertEqual(e.exception.errno, errno.ENOENT)
-
-        with self.assertRaises(IOError) as e:
-            test_mem_controller.get_cache_memory_usage()
+            test_mem_controller.get_memory_usage()
 
         self.assertEqual(e.exception.errno, errno.ENOENT)
 
@@ -71,7 +64,7 @@ class TestMemoryControllerV1(AgentTestCase):
         test_mem_controller = MemoryControllerV1("test_extension", self.tmp_dir)
 
         with self.assertRaises(CounterNotFound):
-            test_mem_controller.get_anon_memory_usage()
+            test_mem_controller.get_memory_usage()
 
         swap_memory_usage = test_mem_controller.try_swap_memory_usage()
         self.assertEqual(0, swap_memory_usage)
@@ -81,10 +74,8 @@ class TestMemoryControllerV2(AgentTestCase):
     def test_get_metrics_v2(self):
         test_mem_controller = MemoryControllerV2("test_extension", os.path.join(data_dir, "cgroups", "v2"))
 
-        anon_memory_usage = test_mem_controller.get_anon_memory_usage()
+        anon_memory_usage, cache_memory_usage = test_mem_controller.get_memory_usage()
         self.assertEqual(17589300, anon_memory_usage)
-
-        cache_memory_usage = test_mem_controller.get_cache_memory_usage()
         self.assertEqual(134553600, cache_memory_usage)
 
         max_memory_usage = test_mem_controller.get_max_memory_usage()
@@ -100,12 +91,7 @@ class TestMemoryControllerV2(AgentTestCase):
         test_mem_controller = MemoryControllerV2("test_extension", os.path.join(data_dir, "cgroups"))
 
         with self.assertRaises(IOError) as e:
-            test_mem_controller.get_anon_memory_usage()
-
-        self.assertEqual(e.exception.errno, errno.ENOENT)
-
-        with self.assertRaises(IOError) as e:
-            test_mem_controller.get_cache_memory_usage()
+            test_mem_controller.get_memory_usage()
 
         self.assertEqual(e.exception.errno, errno.ENOENT)
 
@@ -132,7 +118,7 @@ class TestMemoryControllerV2(AgentTestCase):
         test_mem_controller = MemoryControllerV2("test_extension", self.tmp_dir)
 
         with self.assertRaises(CounterNotFound):
-            test_mem_controller.get_anon_memory_usage()
+            test_mem_controller.get_memory_usage()
 
         with self.assertRaises(CounterNotFound):
             test_mem_controller.get_memory_throttled_events()
