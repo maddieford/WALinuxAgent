@@ -1,6 +1,5 @@
 name: "Pass"
 tests:
   - "samples/pass_test.py"
-images:
-  - "ubuntu_2004"
-#  - "ubuntu_2204"
+  - "samples/pass_remote_test.py"
+images: "ubuntu_2004"
