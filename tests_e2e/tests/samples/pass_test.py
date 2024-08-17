@@ -27,6 +27,8 @@ class PassTest(AgentVmTest):
     A trivial test that passes.
     """
     def run(self):
+        self._context.create_ssh_client().run_command(
+                              "update-waagent-conf Debug.EnableCgroupV2ResourceLimiting=y Debug.CgroupLogMetrics=y", use_sudo=True)
         log.info("* PASSED *")
 
 

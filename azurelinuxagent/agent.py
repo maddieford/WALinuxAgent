@@ -28,6 +28,7 @@ import re
 import subprocess
 import sys
 import threading
+from datetime import datetime, timedelta
 
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
@@ -243,13 +244,16 @@ class Agent(object):
                         break
                 log_collector_monitor = get_log_collector_monitor_handler(tracked_controllers)
                 log_collector_monitor.run()
+
             archive, total_uncompressed_size = log_collector.collect_logs_and_get_archive()
             logger.info("Log collection successfully completed. Archive can be found at {0} "
                   "and detailed log output can be found at {1}".format(archive, OUTPUT_RESULTS_FILE_PATH))
+
         except Exception as e:
             logger.error("Log collection completed unsuccessfully. Error: {0}".format(ustr(e)))
             logger.info("Detailed log output can be found at {0}".format(OUTPUT_RESULTS_FILE_PATH))
             sys.exit(1)
+
         finally:
             if log_collector_monitor is not None:
                 log_collector_monitor.stop()
@@ -260,7 +264,9 @@ class Agent(object):
                     logger.info(msg)
                     event.add_event(op=event.WALAEventOperation.LogCollection, message=msg, log_event=False)
                 except Exception as e:
-                    logger.warn("An error occurred while reporting log collector resource usage summary: {0}".format(ustr(e)))
+                    msg = "An error occurred while reporting log collector resource usage summary: {0}".format(ustr(e))
+                    logger.warn(msg)
+                    event.add_event(op=event.WALAEventOperation.LogCollection, is_success=False, message=msg, log_event=False)
 
     @staticmethod
     def setup_firewall(firewall_metadata):

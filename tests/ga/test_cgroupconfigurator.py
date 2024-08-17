@@ -1019,3 +1019,10 @@ exit 0
                     configurator.check_agent_memory_usage()
 
         self.assertIn("The agent memory limit {0} bytes exceeded".format(conf.get_agent_memory_quota()), ustr(context_manager.exception), "An incorrect exception was raised")
+
+    def test_get_log_collector_properties_should_return_correct_props(self):
+        with self._get_cgroup_configurator() as configurator:
+            self.assertEquals(configurator.get_logcollector_unit_properties(), ["--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%"])
+
+        with self._get_cgroup_configurator_v2() as configurator:
+            self.assertEquals(configurator.get_logcollector_unit_properties(), ["--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%", "--property=MemoryHigh=170M"])

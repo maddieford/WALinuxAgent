@@ -201,8 +201,7 @@ __INTEGER_OPTIONS__ = {
     "Debug.EtpCollectionPeriod": 300,
     "Debug.AutoUpdateHotfixFrequency": 14400,
     "Debug.AutoUpdateNormalFrequency": 86400,
-    "Debug.FirewallRulesLogPeriod": 86400,
-    "Debug.InitialLogCollectionDelay": 5 * 60
+    "Debug.FirewallRulesLogPeriod": 86400
 }
 
 
@@ -690,11 +689,3 @@ def get_enable_cgroup_v2_resource_limiting(conf=__conf__):
     NOTE: This option is experimental and may be removed in later versions of the Agent.
     """
     return conf.get_switch("Debug.EnableCgroupV2ResourceLimiting", False)
-
-
-def get_initial_logcollection_delay(conf=__conf__):
-    """
-    Determines the amount of time in seconds to delay the first log collector run after service start.
-    NOTE: This option is experimental and may be removed in later versions of the Agent.
-    """
-    return conf.get_int("Debug.InitialLogCollectionDelay", 5 * 60)

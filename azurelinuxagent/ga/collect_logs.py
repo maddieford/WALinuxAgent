@@ -36,6 +36,8 @@ from azurelinuxagent.common.utils import shellutil
 from azurelinuxagent.common.utils.shellutil import CommandError
 from azurelinuxagent.common.version import PY_VERSION_MAJOR, PY_VERSION_MINOR, AGENT_NAME, CURRENT_VERSION
 
+_INITIAL_LOG_COLLECTION_DELAY = 5 * 60  # Five minutes of delay
+
 
 def get_collect_logs_handler():
     return CollectLogsHandler()
@@ -151,7 +153,7 @@ class CollectLogsHandler(ThreadHandlerInterface):
     def daemon(self):
         # Delay the first collector on start up to give short lived VMs (that might be dead before the second 
         # collection has a chance to run) an opportunity to do produce meaningful logs to collect.
-        time.sleep(conf.get_initial_logcollection_delay())
+        time.sleep(_INITIAL_LOG_COLLECTION_DELAY)
 
         try:
             CollectLogsHandler.enable_monitor_cgroups_check()
@@ -313,7 +315,6 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
         self.event_thread.start()
 
     def daemon(self):
-        time.sleep(0.1)
         try:
             while not self.stopped():
                 try:

@@ -320,6 +320,8 @@ class LogCollector(object):
                     if truncated_file_path:
                         _LOGGER.info("Adding truncated file %s, size %s b", truncated_file_path, file_size)
                         final_files_to_collect.append(truncated_file_path)
+                    else:
+                        file_size = 0
 
                 total_uncompressed_size += file_size
             except IOError as e:
