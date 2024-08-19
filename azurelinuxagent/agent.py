@@ -264,7 +264,6 @@ class Agent(object):
             logger.error("Log collection completed unsuccessfully. Error: {0}".format(ustr(e)))
             logger.info("Detailed log output can be found at {0}".format(OUTPUT_RESULTS_FILE_PATH))
             sys.exit(1)
-
         finally:
             if log_collector_monitor is not None:
                 log_collector_monitor.stop()
