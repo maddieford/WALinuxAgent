@@ -181,7 +181,7 @@ class CpuControllerV1(_CpuController):
         return round(100.0 * self._osutil.get_processor_cores() * float(cgroup_delta) / float(system_delta), 3)
 
     def get_cpu_throttled_time(self, read_previous_throttled_time=True):
-        # Throttled time is reported in nanoseconds in v2
+        # Throttled time is reported in nanoseconds in v1
         if not read_previous_throttled_time:
             return float(self._get_cpu_stat_counter(counter_name='throttled_time') / 1E9)
 

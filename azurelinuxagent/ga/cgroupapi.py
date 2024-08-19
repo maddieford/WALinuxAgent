@@ -624,32 +624,32 @@ class CgroupV1(Cgroup):
     def get_controllers(self, expected_relative_path=None):
         controllers = []
 
-        for supported_controller in self.get_supported_controller_names():
+        for supported_controller_name in self.get_supported_controller_names():
             controller = None
-            controller_path = self._controller_paths.get(supported_controller)
-            controller_mountpoint = self._controller_mountpoints.get(supported_controller)
+            controller_path = self._controller_paths.get(supported_controller_name)
+            controller_mountpoint = self._controller_mountpoints.get(supported_controller_name)
 
             if controller_mountpoint is None:
-                log_cgroup_warning("{0} controller is not mounted; will not track".format(supported_controller), send_event=False)
+                log_cgroup_warning("{0} controller is not mounted; will not track".format(supported_controller_name), send_event=False)
                 continue
 
             if controller_path is None:
-                log_cgroup_warning("{0} is not mounted for the {1} cgroup; will not track".format(supported_controller, self._cgroup_name), send_event=False)
+                log_cgroup_warning("{0} is not mounted for the {1} cgroup; will not track".format(supported_controller_name, self._cgroup_name), send_event=False)
                 continue
 
             if expected_relative_path is not None:
                 expected_path = os.path.join(controller_mountpoint, expected_relative_path)
                 if controller_path != expected_path:
-                    log_cgroup_warning("The {0} controller is not mounted at the expected path for the {1} cgroup; will not track. Actual cgroup path:[{2}] Expected:[{3}]".format(supported_controller, self._cgroup_name, controller_path, expected_path), send_event=False)
+                    log_cgroup_warning("The {0} controller is not mounted at the expected path for the {1} cgroup; will not track. Actual cgroup path:[{2}] Expected:[{3}]".format(supported_controller_name, self._cgroup_name, controller_path, expected_path), send_event=False)
                     continue
 
-            if supported_controller == self.CPU_CONTROLLER:
+            if supported_controller_name == self.CPU_CONTROLLER:
                 controller = CpuControllerV1(self._cgroup_name, controller_path)
-            elif supported_controller == self.MEMORY_CONTROLLER:
+            elif supported_controller_name == self.MEMORY_CONTROLLER:
                 controller = MemoryControllerV1(self._cgroup_name, controller_path)
 
             if controller is not None:
-                msg = "{0} controller for cgroup: {1}".format(supported_controller, controller)
+                msg = "{0} controller for cgroup: {1}".format(supported_controller_name, controller)
                 log_cgroup_info(msg, send_event=False)
                 controllers.append(controller)
 
@@ -701,11 +701,11 @@ class CgroupV2(Cgroup):
     def get_controllers(self, expected_relative_path=None):
         controllers = []
 
-        for supported_controller in self.get_supported_controller_names():
+        for supported_controller_name in self.get_supported_controller_names():
             controller = None
 
-            if supported_controller not in self._enabled_controllers:
-                log_cgroup_warning("{0} controller is not enabled; will not track".format(supported_controller),
+            if supported_controller_name not in self._enabled_controllers:
+                log_cgroup_warning("{0} controller is not enabled; will not track".format(supported_controller_name),
                                    send_event=False)
                 continue
 
@@ -722,13 +722,13 @@ class CgroupV2(Cgroup):
                             self._cgroup_name, self._cgroup_path, expected_path), send_event=False)
                     continue
 
-            if supported_controller == self.CPU_CONTROLLER:
+            if supported_controller_name == self.CPU_CONTROLLER:
                 controller = CpuControllerV2(self._cgroup_name, self._cgroup_path)
-            elif supported_controller == self.MEMORY_CONTROLLER:
+            elif supported_controller_name == self.MEMORY_CONTROLLER:
                 controller = MemoryControllerV2(self._cgroup_name, self._cgroup_path)
 
             if controller is not None:
-                msg = "{0} controller for cgroup: {1}".format(supported_controller, controller)
+                msg = "{0} controller for cgroup: {1}".format(supported_controller_name, controller)
                 log_cgroup_info(msg, send_event=False)
                 controllers.append(controller)
 

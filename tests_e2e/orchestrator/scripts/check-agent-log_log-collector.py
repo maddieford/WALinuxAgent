@@ -28,7 +28,7 @@ from pathlib import Path
 from tests_e2e.tests.lib.agent_log import AgentLog
 
 # Checks the agent log for unsuccessful log collector runs. If an unsuccessful run is detected, prints all the
-# logcollector agent log records for the unsucessful run.
+# log collector log records for the unsucessful run.
 
 try:
     parser = argparse.ArgumentParser()

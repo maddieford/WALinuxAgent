@@ -30,7 +30,7 @@ from azurelinuxagent.common.event import elapsed_milliseconds, add_event, WALAEv
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.ga.interfaces import ThreadHandlerInterface
 from azurelinuxagent.ga.logcollector import COMPRESSED_ARCHIVE_PATH, GRACEFUL_KILL_ERRCODE
-from azurelinuxagent.ga.cgroupconfigurator import CGroupConfigurator, LOGCOLLECTOR_ANON_MEMORY_LIMIT, LOGCOLLECTOR_CACHE_MEMORY_LIMIT, LOGCOLLECTOR_MAX_THROTTLE_EVENTS
+from azurelinuxagent.ga.cgroupconfigurator import CGroupConfigurator, LOGCOLLECTOR_ANON_MEMORY_LIMIT, LOGCOLLECTOR_CACHE_MEMORY_LIMIT, LOGCOLLECTOR_MAX_THROTTLED_EVENTS
 from azurelinuxagent.common.protocol.util import get_protocol_util
 from azurelinuxagent.common.utils import shellutil
 from azurelinuxagent.common.utils.shellutil import CommandError
@@ -344,10 +344,7 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
 
         for metric in metrics:
             current_max = self.max_recorded_metrics.get(metric.counter)
-            if current_max is not None:
-                self.max_recorded_metrics[metric.counter] = max(current_max, metric.value)
-            else:
-                self.max_recorded_metrics[metric.counter] = metric.value
+            self.max_recorded_metrics[metric.counter] = metric.value if current_max is None else max(current_max, metric.value)
 
         return metrics
 
@@ -380,9 +377,9 @@ class LogCollectorMonitorHandler(ThreadHandlerInterface):
             msg = "Log collector cache memory limit {0} bytes exceeded. The reported usage is {1} bytes.".format(LOGCOLLECTOR_CACHE_MEMORY_LIMIT, current_cache_usage)
             logger.info(msg)
             add_event(name=AGENT_NAME, version=CURRENT_VERSION, op=WALAEventOperation.LogCollection, message=msg)
-        if memory_throttled_events > LOGCOLLECTOR_MAX_THROTTLE_EVENTS:
+        if memory_throttled_events > LOGCOLLECTOR_MAX_THROTTLED_EVENTS:
             mem_limit_exceeded = True
-            msg = "Log collector memory throttled events limit {0} exceeded. The reported number of throttled events is {1}.".format(LOGCOLLECTOR_MAX_THROTTLE_EVENTS, memory_throttled_events)
+            msg = "Log collector memory throttled events limit {0} exceeded. The reported number of throttled events is {1}.".format(LOGCOLLECTOR_MAX_THROTTLED_EVENTS, memory_throttled_events)
             logger.info(msg)
             add_event(name=AGENT_NAME, version=CURRENT_VERSION, op=WALAEventOperation.LogCollection, message=msg)
 
