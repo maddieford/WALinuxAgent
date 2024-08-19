@@ -1022,7 +1022,7 @@ exit 0
 
     def test_get_log_collector_properties_should_return_correct_props(self):
         with self._get_cgroup_configurator() as configurator:
-            self.assertEquals(configurator.get_logcollector_unit_properties(), ["--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%"])
+            self.assertEqual(configurator.get_logcollector_unit_properties(), ["--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%"])
 
         with self._get_cgroup_configurator_v2() as configurator:
-            self.assertEquals(configurator.get_logcollector_unit_properties(), ["--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%", "--property=MemoryHigh=170M"])
+            self.assertEqual(configurator.get_logcollector_unit_properties(), ["--property=CPUAccounting=yes", "--property=MemoryAccounting=yes", "--property=CPUQuota=5%", "--property=MemoryHigh=170M"])

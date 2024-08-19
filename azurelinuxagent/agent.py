@@ -28,7 +28,6 @@ import re
 import subprocess
 import sys
 import threading
-from datetime import datetime, timedelta
 
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.ga import logcollector, cgroupconfigurator
