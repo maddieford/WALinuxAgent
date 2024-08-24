@@ -21,7 +21,6 @@ import re
 from azurelinuxagent.common import logger
 from azurelinuxagent.common.exception import CGroupsException
 from azurelinuxagent.common.future import ustr
-from azurelinuxagent.common.utils import fileutil
 from azurelinuxagent.ga.cgroupcontroller import _CgroupController, CounterNotFound, MetricValue, MetricsCategory, \
     MetricsCounter, _REPORT_EVERY_HOUR
 

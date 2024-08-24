@@ -18,7 +18,7 @@ import contextlib
 import os
 
 from azurelinuxagent.common import logger, conf
-from azurelinuxagent.ga.cgroupcontroller import MetricValue
+from azurelinuxagent.ga.cgroupcontroller import MetricValue, MetricsCounter
 from azurelinuxagent.ga.cgroupconfigurator import CGroupConfigurator
 from azurelinuxagent.common.logger import Logger
 from azurelinuxagent.common.protocol.util import ProtocolUtil
@@ -411,26 +411,26 @@ class TestLogCollectorMonitorHandler(AgentTestCase):
 
     def test_verify_log_collector_memory_limit_exceeded(self):
         with _create_log_collector_monitor_handler() as log_collector_monitor_handler:
-            cache_exceeded = [MetricValue("Process", "% Processor Time", "service", 4.5),
-                              MetricValue("Process", "Throttled Time", "service", 10.281),
-                              MetricValue("Memory", "Total Memory Usage", "service", 170 * 1024 ** 2),
-                              MetricValue("Memory", "Anon Memory Usage", "service", 15 * 1024 ** 2),
-                              MetricValue("Memory", "Cache Memory Usage", "service", 155 * 1024 ** 2),
-                              MetricValue("Memory", "Max Memory Usage", "service", 171 * 1024 ** 2),
-                              MetricValue("Memory", "Swap Memory Usage", "service", 0)]
+            cache_exceeded = [MetricValue("Process", MetricsCounter.PROCESSOR_PERCENT_TIME, "service", 4.5),
+                              MetricValue("Process", MetricsCounter.THROTTLED_TIME, "service", 10.281),
+                              MetricValue("Memory", MetricsCounter.TOTAL_MEM_USAGE, "service", 170 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.ANON_MEM_USAGE, "service", 15 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.CACHE_MEM_USAGE, "service", 155 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.MAX_MEM_USAGE, "service", 171 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.SWAP_MEM_USAGE, "service", 0)]
             with patch("azurelinuxagent.ga.collect_logs.LogCollectorMonitorHandler._poll_resource_usage", return_value=cache_exceeded):
                 with patch("os._exit") as mock_exit:
                     log_collector_monitor_handler.run_and_wait()
                     self.assertEqual(mock_exit.call_count, 1)
 
         with _create_log_collector_monitor_handler() as log_collector_monitor_handler:
-            anon_exceeded = [MetricValue("Process", "% Processor Time", "service", 4.5),
-                              MetricValue("Process", "Throttled Time", "service", 10.281),
-                              MetricValue("Memory", "Total Memory Usage", "service", 170 * 1024 ** 2),
-                              MetricValue("Memory", "Anon Memory Usage", "service", 30 * 1024 ** 2),
-                              MetricValue("Memory", "Cache Memory Usage", "service", 140 * 1024 ** 2),
-                              MetricValue("Memory", "Max Memory Usage", "service", 171 * 1024 ** 2),
-                              MetricValue("Memory", "Swap Memory Usage", "service", 0)]
+            anon_exceeded = [MetricValue("Process", MetricsCounter.PROCESSOR_PERCENT_TIME, "service", 4.5),
+                              MetricValue("Process", MetricsCounter.THROTTLED_TIME, "service", 10.281),
+                              MetricValue("Memory", MetricsCounter.TOTAL_MEM_USAGE, "service", 170 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.ANON_MEM_USAGE, "service", 30 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.CACHE_MEM_USAGE, "service", 140 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.MAX_MEM_USAGE, "service", 171 * 1024 ** 2),
+                              MetricValue("Memory", MetricsCounter.SWAP_MEM_USAGE, "service", 0)]
             with patch("azurelinuxagent.ga.collect_logs.LogCollectorMonitorHandler._poll_resource_usage", return_value=anon_exceeded):
                 with patch("os._exit") as mock_exit:
                     log_collector_monitor_handler.run_and_wait()
