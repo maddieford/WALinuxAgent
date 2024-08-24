@@ -275,7 +275,7 @@ class CpuControllerV2(_CpuController):
         self._current_system_cpu = self._get_system_usage()
 
         cgroup_delta = self._current_cgroup_cpu - self._previous_cgroup_cpu
-        system_delta = max(1, self._current_system_cpu - self._previous_system_cpu)
+        system_delta = max(1.0, self._current_system_cpu - self._previous_system_cpu)
 
         return round(100.0 * float(cgroup_delta) / float(system_delta), 3)
 
