@@ -344,7 +344,7 @@ def _create_log_collector_monitor_handler(iterations=1, cgroup_version=CgroupVer
 
 class TestLogCollectorMonitorHandler(AgentTestCase):
 
-    def test_get_metrics_summary(self):
+    def test_get_max_recorded_metrics(self):
         with _create_log_collector_monitor_handler(iterations=2) as log_collector_monitor_handler:
             nonlocal_vars = {
                 'cpu_iteration': 0,
@@ -369,14 +369,15 @@ class TestLogCollectorMonitorHandler(AgentTestCase):
             with patch("azurelinuxagent.ga.cpucontroller._CpuController.get_tracked_metrics", side_effect=get_different_cpu_metrics):
                 with patch("azurelinuxagent.ga.memorycontroller._MemoryController.get_tracked_metrics", side_effect=get_different_memory_metrics):
                     log_collector_monitor_handler.run_and_wait()
-                    metrics_summary = log_collector_monitor_handler.get_metrics_summary()
-                    self.assertIn("% Processor Time=4.5", metrics_summary)
-                    self.assertIn("Throttled Time=15.0", metrics_summary)
-                    self.assertIn("Total Memory Usage=20", metrics_summary)
-                    self.assertIn("Anon Memory Usage=15", metrics_summary)
-                    self.assertIn("Cache Memory Usage=10", metrics_summary)
-                    self.assertIn("Max Memory Usage=30", metrics_summary)
-                    self.assertIn("Swap Memory Usage=0", metrics_summary)
+                    max_recorded_metrics = log_collector_monitor_handler.get_max_recorded_metrics()
+                    self.assertEqual(len(max_recorded_metrics), 7)
+                    self.assertEqual(max_recorded_metrics["% Processor Time"], 4.5)
+                    self.assertEqual(max_recorded_metrics["Throttled Time"], 15.0)
+                    self.assertEqual(max_recorded_metrics["Total Memory Usage"], 20)
+                    self.assertEqual(max_recorded_metrics["Anon Memory Usage"], 15)
+                    self.assertEqual(max_recorded_metrics["Cache Memory Usage"], 10)
+                    self.assertEqual(max_recorded_metrics["Max Memory Usage"], 30)
+                    self.assertEqual(max_recorded_metrics["Swap Memory Usage"], 0)
 
     def test_send_extension_metrics_telemetry(self):
         with _create_log_collector_monitor_handler() as log_collector_monitor_handler:
