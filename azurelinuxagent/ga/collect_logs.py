@@ -26,7 +26,7 @@ from azurelinuxagent.ga import logcollector, cgroupconfigurator
 import azurelinuxagent.common.conf as conf
 from azurelinuxagent.common import logger
 from azurelinuxagent.ga.cgroupcontroller import MetricsCounter
-from azurelinuxagent.common.event import elapsed_milliseconds, add_event, WALAEventOperation, report_metric
+from azurelinuxagent.common.event import elapsed_milliseconds, add_event, WALAEventOperation
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.ga.interfaces import ThreadHandlerInterface
 from azurelinuxagent.ga.logcollector import COMPRESSED_ARCHIVE_PATH, GRACEFUL_KILL_ERRCODE
