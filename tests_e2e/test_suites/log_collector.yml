@@ -5,4 +5,4 @@ name: "LogCollector"
 tests:
   - "log_collector/log_collector.py"
 images:
-  - "log-collector-endorsed"
+  - "random(log-collector-endorsed, 1)"
