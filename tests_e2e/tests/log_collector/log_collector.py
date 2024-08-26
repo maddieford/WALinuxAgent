@@ -32,7 +32,7 @@ class LogCollector(AgentVmTest):
     """
     def run(self):
         ssh_client = self._context.create_ssh_client()
-        ssh_client.run_command("update-waagent-conf Debug.EnableCgroupV2ResourceLimiting=y Debug.LogCollectorInitialDelay=60", use_sudo=True)
+        ssh_client.run_command("update-waagent-conf Logs.Collect=y Debug.EnableCgroupV2ResourceLimiting=y Debug.LogCollectorInitialDelay=60", use_sudo=True)
         # Wait for log collector to finish uploading logs
         for _ in range(3):
             time.sleep(90)
