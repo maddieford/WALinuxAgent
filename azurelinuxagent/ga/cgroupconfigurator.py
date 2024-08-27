@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import threading
+from time import sleep
 
 from azurelinuxagent.common import conf
 from azurelinuxagent.common import logger
@@ -196,11 +197,14 @@ class CGroupConfigurator(object):
                     log_cgroup_warning("The agent is within an unexpected slice: {0}".format(agent_slice))
                     return
 
+                log_cgroup_info("Agent slice: {0}".format(agent_slice))
+                log_cgroup_info("Sleep to give systemd time to move agent to azure.slice")
+                sleep(60)
                 # Log mount points/root paths for cgroup controllers
                 self._cgroups_api.log_root_paths()
 
                 # Get agent cgroup
-                self._agent_cgroup = self._cgroups_api.get_unit_cgroup(agent_unit_name, cgroup_name=AGENT_NAME_TELEMETRY)
+                self._agent_cgroup = self._cgroups_api.get_unit_cgroup(unit_name=agent_unit_name, cgroup_name=AGENT_NAME_TELEMETRY)
 
                 if conf.get_cgroup_disable_on_process_check_failure() and self._check_fails_if_processes_found_in_agent_cgroup_before_enable(agent_slice):
                     reason = "Found unexpected processes in the agent cgroup before agent enable cgroups."

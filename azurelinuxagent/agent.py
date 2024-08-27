@@ -221,7 +221,7 @@ class Agent(object):
                 log_cgroup_warning("Unable to determine which cgroup version to use: {0}".format(ustr(e)), send_event=True)
                 sys.exit(logcollector.INVALID_CGROUPS_ERRCODE)
 
-            log_collector_cgroup = cgroup_api.get_process_cgroup(process_id="self", cgroup_name=AGENT_LOG_COLLECTOR)
+            log_collector_cgroup = cgroup_api.get_unit_cgroup(unit_name=logcollector.CGROUPS_UNIT, cgroup_name=AGENT_LOG_COLLECTOR)
             tracked_controllers = log_collector_cgroup.get_controllers()
 
             if len(tracked_controllers) != len(log_collector_cgroup.get_supported_controller_names()):
