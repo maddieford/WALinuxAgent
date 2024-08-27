@@ -200,7 +200,7 @@ class CGroupConfigurator(object):
                 self._cgroups_api.log_root_paths()
 
                 # Get agent cgroup
-                self._agent_cgroup = self._cgroups_api.get_process_cgroup(process_id="self", cgroup_name=AGENT_NAME_TELEMETRY)
+                self._agent_cgroup = self._cgroups_api.get_unit_cgroup(agent_unit_name, cgroup_name=AGENT_NAME_TELEMETRY)
 
                 if conf.get_cgroup_disable_on_process_check_failure() and self._check_fails_if_processes_found_in_agent_cgroup_before_enable(agent_slice):
                     reason = "Found unexpected processes in the agent cgroup before agent enable cgroups."
