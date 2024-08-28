@@ -295,6 +295,8 @@ class ExtensionsGoalStateFromExtensionsConfig(ExtensionsGoalState):
         if extension.state in (None, ""):
             raise ExtensionsConfigError("Received empty Extensions.Plugins.Plugin.state, failing Handler")
 
+        # extension.encoded_signature value should be None if the property does not exist for the plugin. getattrib
+        # returns "" if an attribute does not exist in a node, so use hasattrib here to check if the attribute exists
         if hasattrib(plugin, "encodedSignature"):
             extension.encoded_signature = getattrib(plugin, "encodedSignature")
 
