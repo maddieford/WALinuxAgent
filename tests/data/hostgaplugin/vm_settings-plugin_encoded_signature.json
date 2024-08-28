@@ -7,28 +7,25 @@
   "extensionGoalStatesSource": "FastTrack",
   "StatusUploadBlob": {
     "statusBlobType": "PageBlob",
-    "value": "https://md-0lvsb35lnzg5.z2.blob.storage.azure.net/$system/ubuntu-20-ext-sig.f2437a49-b80b-4cd0-aaaa-d06888062bd8.status?sv=2018-03-28&sr=b&sk=system-1&sig=ecAbGUoYiJpx%2buUXgUWvb48SjhvvttLN4xJT4Zqg9Yk%3d&se=9999-01-01T00%3a00%3a00Z&sp=w"
+    "value": "https://test.blob.core.windows.net/vhds/test-cs12.test-cs12.test-cs12.status?sr=b&amp;sp=rw&amp;se=9999-01-01&amp;sk=key1&amp;sv=2014-02-14&amp;sig=hfRh7gzUE7sUtYwke78IOlZOrTRCYvkec4hGZ9zZzXo"
   },
   "gaFamilies": [
     {
       "Name": "Prod",
-      "Version": "2.9.1.1",
+      "Version": "9.9.9.9",
       "isVersionFromRSM": false,
       "isVMEnabledForRSMUpgrades": false,
       "Uris": [
-        "https://umsat3rkcxjkfqwv5nld.blob.core.windows.net/568bb00f-455e-32b8-8deb-0e1bf1636254/568bb00f-455e-32b8-8deb-0e1bf1636254_manifest.xml", "https://umsah3gtkfd3hkvqdd4h.blob.core.windows.net/568bb00f-455e-32b8-8deb-0e1bf1636254/568bb00f-455e-32b8-8deb-0e1bf1636254_manifest.xml", "https://umsargdwkblh1pc4gdbx.blob.core.windows.net/568bb00f-455e-32b8-8deb-0e1bf1636254/568bb00f-455e-32b8-8deb-0e1bf1636254_manifest.xml"
+        "http://mock-goal-state/manifest_of_ga.xml"
       ]
     }
   ],
   "extensionGoalStates": [
     {
-      "name": "Microsoft.CPlat.Core.LinuxPatchExtension",
-      "version": "1.6.39.1",
-      "location": "https://umsaqxvgmlmmvfxdqdn2.blob.core.windows.net/610b0937-92aa-fee8-91c2-0937df72ad94/610b0937-92aa-fee8-91c2-0937df72ad94_manifest.xml",
-      "failoverlocation": "https://umsac34zhmhthfvpd4cg.blob.core.windows.net/610b0937-92aa-fee8-91c2-0937df72ad94/610b0937-92aa-fee8-91c2-0937df72ad94_manifest.xml",
-      "additionalLocations": [
-        "https://umsanffnmkj4w4lzztk5.blob.core.windows.net/610b0937-92aa-fee8-91c2-0937df72ad94/610b0937-92aa-fee8-91c2-0937df72ad94_manifest.xml"
-      ],
+      "name": "OSTCExtensions.ExampleHandlerLinux",
+      "version": "1.0.0",
+      "location": "http://mock-goal-state/rdfepirv2hknprdstr03.blob.core.windows.net/b01058962be54ceca550a390fa5ff064/Microsoft.OSTCExtensions_ExampleHandlerLinux_asiaeast_manifest.xml",
+      "failoverlocation": "http://mock-goal-state/rdfepirv2hknprdstr04.blob.core.windows.net/b01058962be54ceca550a390fa5ff064/Microsoft.OSTCExtensions_ExampleHandlerLinux_asiaeast_manifest.xml",
       "state": "enabled",
       "autoUpgrade": true,
       "runAsStartupTask": false,
@@ -38,18 +35,15 @@
       "isMultiConfig": false,
       "settings": [
         {
-          "publicSettings": "{\"cloudType\":\"Azure\",\"operation\":\"ConfigurePatching\",\"activityId\":\"5a950aa4-033e-44dc-94d1-f36b149c4cbf\",\"startTime\":\"2024-08-26T23:40:52.6309061Z\",\"maximumDuration\":\"PT60M\",\"patchMode\":\"AutomaticByPlatform\"}"
+            "publicSettings": "{\"commandToExecute\":\"echo 'cee174d4-4daa-4b07-9958-53b9649445c2'\"}"
         }
       ]
     },
     {
-      "name": "Microsoft.CPlat.Core.NullExtension",
-      "version": "1.0.7",
-      "location": "https://umsanffnmkj4w4lzztk5.blob.core.windows.net/a08e3de3-3d4c-4cd3-3952-a9ed75bfc710/a08e3de3-3d4c-4cd3-3952-a9ed75bfc710_manifest.xml",
-      "failoverlocation": "https://umsaqxvgmlmmvfxdqdn2.blob.core.windows.net/a08e3de3-3d4c-4cd3-3952-a9ed75bfc710/a08e3de3-3d4c-4cd3-3952-a9ed75bfc710_manifest.xml",
-      "additionalLocations": [
-        "https://umsac34zhmhthfvpd4cg.blob.core.windows.net/a08e3de3-3d4c-4cd3-3952-a9ed75bfc710/a08e3de3-3d4c-4cd3-3952-a9ed75bfc710_manifest.xml"
-      ],
+      "name": "Microsoft.Powershell.ExampleExtension",
+      "version": "1.0.0",
+      "location": "https://mock-goal-state/zrdfepirv2sn3prdstr06.blob.core.windows.net/3055d769a0ed485d8c5ea8a7cd24073e/Microsoft.Powershell_ExampleExtension_ussouth_manifest.xml",
+      "failoverlocation": "https://mock-goal-state/zrdfepirv2sn4prdstr02a.blob.core.windows.net/3055d769a0ed485d8c5ea8a7cd24073e/Microsoft.Powershell_ExampleExtension_ussouth_manifest.xml",
       "state": "enabled",
       "autoUpgrade": true,
       "runAsStartupTask": false,
