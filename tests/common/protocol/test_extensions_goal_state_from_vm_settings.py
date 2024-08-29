@@ -171,7 +171,8 @@ class ExtensionsGoalStateFromVmSettingsTestCase(AgentTestCase):
             self.assertEqual(expected_signature, extensions[0].encoded_signature)
 
             # extension.encoded_signature should be None if the property does not exist for the extension
-            self.assertIsNone(extensions[1].encoded_signature)
+            for i in range(1, 5):
+                self.assertIsNone(extensions[i].encoded_signature)
 
 
 class CaseFoldedDictionaryTestCase(AgentTestCase):
