@@ -327,7 +327,10 @@ class LogCollector(object):
                 if e.errno == 2:    # [Errno 2] No such file or directory
                     _LOGGER.warning("File %s does not exist, skipping collection for this file", file_path)
 
-        _LOGGER.info("Uncompressed archive size is %s b", total_uncompressed_size)
+        msg = "Uncompressed archive size is {0} b".format(total_uncompressed_size)
+        _LOGGER.info(msg)
+        logger.info(msg)
+        add_event(op=WALAEventOperation.LogCollection, message=msg)
 
         return final_files_to_collect, total_uncompressed_size
 
@@ -359,11 +362,6 @@ class LogCollector(object):
             _LOGGER.info("Using log collection mode %s", "full" if self._is_full_mode else "normal")
 
             files_to_collect, total_uncompressed_size = self._create_list_of_files_to_collect()
-
-            msg = "Total size of files to be collected: {0}. Limit is {1}".format(total_uncompressed_size, _FILE_SIZE_LIMIT)
-            logger.info(msg)
-            add_event(op=WALAEventOperation.LogCollection, message=msg)
-
             _LOGGER.info("### Creating compressed archive ###")
 
             compressed_archive = None
