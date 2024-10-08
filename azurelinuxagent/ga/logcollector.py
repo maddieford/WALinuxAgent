@@ -26,8 +26,9 @@ import zipfile
 from datetime import datetime
 from heapq import heappush, heappop
 
+from azurelinuxagent.common import logger
 from azurelinuxagent.common.conf import get_lib_dir, get_ext_log_dir, get_agent_log_file
-from azurelinuxagent.common.event import initialize_event_logger_vminfo_common_parameters
+from azurelinuxagent.common.event import initialize_event_logger_vminfo_common_parameters, add_event, WALAEventOperation
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.ga.logcollector_manifests import MANIFEST_NORMAL, MANIFEST_FULL
 
@@ -358,6 +359,11 @@ class LogCollector(object):
             _LOGGER.info("Using log collection mode %s", "full" if self._is_full_mode else "normal")
 
             files_to_collect, total_uncompressed_size = self._create_list_of_files_to_collect()
+
+            msg = "Total size of files to be collected: {0}. Limit is {1}".format(total_uncompressed_size, _FILE_SIZE_LIMIT)
+            logger.info(msg)
+            add_event(op=WALAEventOperation.LogCollection, message=msg)
+
             _LOGGER.info("### Creating compressed archive ###")
 
             compressed_archive = None
