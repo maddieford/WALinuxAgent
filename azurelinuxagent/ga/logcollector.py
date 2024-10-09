@@ -329,7 +329,6 @@ class LogCollector(object):
 
         msg = "Uncompressed archive size is {0} b".format(total_uncompressed_size)
         _LOGGER.info(msg)
-        logger.info(msg)
         add_event(op=WALAEventOperation.LogCollection, message=msg)
 
         return final_files_to_collect, total_uncompressed_size
