@@ -26,7 +26,6 @@ import zipfile
 from datetime import datetime
 from heapq import heappush, heappop
 
-from azurelinuxagent.common import logger
 from azurelinuxagent.common.conf import get_lib_dir, get_ext_log_dir, get_agent_log_file
 from azurelinuxagent.common.event import initialize_event_logger_vminfo_common_parameters, add_event, WALAEventOperation
 from azurelinuxagent.common.future import ustr
