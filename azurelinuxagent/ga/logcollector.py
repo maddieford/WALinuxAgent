@@ -76,7 +76,6 @@ class LogCollector(object):
         self._must_collect_files = self._expand_must_collect_files()
         self._create_base_dirs()
         self._set_logger()
-        self._initialize_telemetry()
 
     @staticmethod
     def _mkdir(dirname):
@@ -104,7 +103,7 @@ class LogCollector(object):
         _LOGGER.setLevel(logging.INFO)
 
     @staticmethod
-    def _initialize_telemetry():
+    def initialize_telemetry():
         protocol = get_protocol_util().get_protocol(init_goal_state=False)
         protocol.client.reset_goal_state(goal_state_properties=GoalStateProperties.RoleConfig | GoalStateProperties.HostingEnv)
         # Initialize the common parameters for telemetry events
