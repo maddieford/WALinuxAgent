@@ -151,7 +151,7 @@ class DhcpHandler(object):
         """
         Check if DHCP is available
         """
-        dhcp_available =  self.osutil.is_dhcp_available()
+        dhcp_available = self.osutil.is_dhcp_available()
         if not dhcp_available:
             logger.info("send_dhcp_req: DHCP not available")
             self.endpoint = KNOWN_WIRESERVER_IP
