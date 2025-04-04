@@ -507,7 +507,7 @@ class TestWireProtocol(AgentTestCase, HttpRequestPredicates):
     def test_detect_sends_event_if_known_wireserver_ip_not_used(self, *_):
         with mock_wire_protocol(wire_protocol_data.DATA_FILE) as protocol:
             with patch('azurelinuxagent.common.event.EventLogger.add_event') as patch_add_event:
-                self.assertEquals(protocol.get_endpoint(), KNOWN_WIRESERVER_IP)
+                self.assertEqual(protocol.get_endpoint(), KNOWN_WIRESERVER_IP)
                 protocol.detect()
                 protocol_endpoint_events = [kwargs for _, kwargs in patch_add_event.call_args_list if kwargs['op'] == 'ProtocolEndpoint']
                 # Agent should not send ProtocolEndpoint event if endpoint is known wireserver IP

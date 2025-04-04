@@ -19,7 +19,7 @@ import mock
 import azurelinuxagent.common.dhcp as dhcp
 import azurelinuxagent.common.osutil.default as osutil
 from azurelinuxagent.common.utils.restutil import KNOWN_WIRESERVER_IP
-from tests.lib.tools import AgentTestCase, open_patch, patch, Mock
+from tests.lib.tools import AgentTestCase, open_patch, patch
 
 
 class TestDHCP(AgentTestCase):
@@ -142,7 +142,7 @@ class TestDHCP(AgentTestCase):
                         handler.run()
 
                         # Assert that endpoint is set to known wireserver ip
-                        self.assertEquals(handler.endpoint, KNOWN_WIRESERVER_IP)
+                        self.assertEqual(handler.endpoint, KNOWN_WIRESERVER_IP)
 
                         # Assert that the dhcp request did not get sent, because dhcp is not available
                         self.assertTrue(patch_dhcp_send.call_count == 0)
@@ -162,7 +162,7 @@ class TestDHCP(AgentTestCase):
                         handler.run()
 
                         # Assert that endpoint is set to known wireserver ip
-                        self.assertEquals(handler.endpoint, KNOWN_WIRESERVER_IP)
+                        self.assertEqual(handler.endpoint, KNOWN_WIRESERVER_IP)
 
                         # Assert that the dhcp request did not get sent, because dhcp discovery is disabled
                         self.assertTrue(patch_dhcp_send.call_count == 0)
