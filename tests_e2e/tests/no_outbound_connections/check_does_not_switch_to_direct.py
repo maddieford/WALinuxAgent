@@ -143,9 +143,45 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             else:
                 log.info("Did not find agent log indicating that the agent switched to the Direct channel (as expected).")
 
-
     def get_ignore_error_rules(self) -> List[Dict[str, Any]]:
-        return []
+        return [
+            #
+            # Outbound requests to HGAP port is blocked, so the following are expected:
+            #
+            # 2025-09-26T21:12:25.022926Z ERROR Daemon Daemon HostGAPlugin: Exception Get API versions: [HttpError] [HTTP Failed] GET http://168.63.129.16:32526/versions -- IOError timed out -- 6 attempts made
+            # 2025-09-26T21:12:25.033610Z ERROR Daemon Daemon Event: name=WALinuxAgent, op=HealthObservation, message={"Value": "", "ObservationName": "GuestAgentPluginVersions", "Description": "", "IsHealthy": false}, duration=0
+            # 2025-09-26T21:12:25.034991Z ERROR Daemon Daemon Event: name=WALinuxAgent, op=InitializeHostPlugin, message=, duration=0
+            # 2025-09-26T21:12:25.036403Z WARNING Daemon Daemon Failed to fetch artifacts profile from blob https://md-hdd-xs024ztfcc2p.z33.blob.storage.azure.net/$system/lisa-maddieford-20250926-210017-612-e0-n0.438f7bfa-c766-4595-8b4c-840652f22178.vmSettings?sv=2018-03-28&sr=b&sk=system-1&sig=CZnM3gAD70yA0DU68RLu1kkikcNKo2G17NeFAcDQWWI%3d&se=9999-01-01T00%3a00%3a00Z&sp=r
+            # 2025-09-26T21:15:27.830942Z WARNING ExtHandler ExtHandler Can't download the artifacts profile blob; will assume the VM is not on hold. [ExtensionDownloadError] Failed to download artifacts profile blob from all URIs. Last error: [HttpError] Download failed both on the primary and fallback channels. Primary: [[ProtocolError] HostGAPlugin: Host plugin channel is not available] Fallback: [[HttpError] [HTTP Failed] GET https://md-hdd-xs024ztfcc2p.z33.blob.storage.azure.net/$system/lisa-maddieford-20250926-210017-612-e0-n0.438f7bfa-c766-4595-8b4c-840652f22178.vmSettings -- IOError timed out -- 6 attempts made]
+            # 2025-09-26T21:20:30.678939Z ERROR ExtHandler ExtHandler Event: name=Microsoft.Azure.Extensions.CustomScript, op=None, message=[ExtensionError] Failed to get ext handler pkgs
+            # 		Inner error: [ProtocolError] Failed to retrieve extension manifest. Error: [ExtensionDownloadError] Timeout downloading extension manifest. Elapsed: 0:05:02.367196 URIs tried: 1/3. Last error: [HttpError] Download failed both on the primary and fallback channels. Primary: [[ProtocolError] HostGAPlugin: Host plugin channel is not available] Fallback: [[HttpError] [HTTP Failed] GET https://umsawhl4grhgzs0z1rmq.blob.core.windows.net/5237dd14-0aad-f051-0fad-1e33e1b63091/5237dd14-0aad-f051-0fad-1e33e1b63091_manifest.xml -- IOError timed out -- 6 attempts made], duration=0
+            # 2025-09-26T21:23:32.966850Z ERROR ExtHandler ExtHandler Event: name=WALinuxAgent, op=ExtensionProcessing, message=Failed to report vm agent status: [ProtocolError] Failed to upload status blob via either channel, duration=0
+            #
+            {
+                'message': r"Exception Get API versions: [HttpError] [HTTP Failed] GET http://168.63.129.16:32526/versions"
+            },
+            {
+                'message': r"op=HealthObservation.*\"IsHealthy\": false"
+            },
+            {
+                'message': r"op=InitializeHostPlugin"
+            },
+            {
+                'message': r"Failed to fetch artifacts profile from blob"
+            },
+            {
+                'message': r"Can't download the artifacts profile blob; will assume the VM is not on hold."
+            },
+            {
+                'message': r"message=[ExtensionError] Failed to get ext handler pkgs"
+            },
+            {
+                'message': r"Failed to upload status blob via either channel"
+            },
+            {
+                'message': r"Failed to upload status blob via either channel"
+            }
+        ]
 
 
 if __name__ == "__main__":
