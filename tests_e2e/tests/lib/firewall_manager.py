@@ -199,6 +199,13 @@ class IpTables(_IpTablesFirewalldManager):
     def _get_accept_drop_command(self, command_option: str) -> str:
         return f"sudo iptables -w -t security {command_option} OUTPUT -d {self._wire_server_address} -p tcp -m conntrack --ctstate INVALID,NEW -j DROP"
 
+    def create_outbound_drop_rule(self):
+        """
+        Creates a DROP rule for outbound requests (used in the no_outbound_connections test to force failures)
+        """
+        command = f"sudo iptables -I OUTPUT -d {self._wire_server_address} -p tcp --dport 32526 -j DROP"
+        self._log_and_run_command(command)
+
 
 class Firewalld(_IpTablesFirewalldManager):
     """
@@ -334,3 +341,10 @@ class NfTables(FirewallManager):
             raise Exception(f"Invalid rule name: {rule_name}")
 
         self._log_and_run_command(add_rule_command)
+
+    def create_outbound_drop_rule(self):
+        """
+        Creates a DROP rule for outbound requests (used in the no_outbound_connections test to force failures)
+        """
+        command = f"sudo nft add rule ip filter output ip daddr {self._wire_server_address} tcp dport 32526 drop"
+        self._log_and_run_command(command)
