@@ -346,5 +346,5 @@ class NfTables(FirewallManager):
         """
         Creates a DROP rule for outbound requests (used in the no_outbound_connections test to force failures)
         """
-        command = f"sudo nft add rule ip filter output ip daddr {self._wire_server_address} tcp dport 32526 drop"
+        command = f"sudo nft add rule ip walinuxagent output ip daddr {self._wire_server_address} tcp dport 32526 drop"
         self._log_and_run_command(command)

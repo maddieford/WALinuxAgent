@@ -158,7 +158,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             # 2025-09-26T21:23:32.966850Z ERROR ExtHandler ExtHandler Event: name=WALinuxAgent, op=ExtensionProcessing, message=Failed to report vm agent status: [ProtocolError] Failed to upload status blob via either channel, duration=0
             #
             {
-                'message': r"Exception Get API versions: [HttpError] [HTTP Failed] GET http://168.63.129.16:32526/versions"
+                'message': r"Exception Get API versions: \[HttpError\] \[HTTP Failed\] GET http://168.63.129.16:32526/versions"
             },
             {
                 'message': r"op=HealthObservation.*\"IsHealthy\": false"
@@ -173,7 +173,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 'message': r"Can't download the artifacts profile blob; will assume the VM is not on hold."
             },
             {
-                'message': r"message=[ExtensionError] Failed to get ext handler pkgs"
+                'message': r"message=\[ExtensionError\] Failed to get ext handler pkgs"
             },
             {
                 'message': r"Failed to upload status blob via either channel"
