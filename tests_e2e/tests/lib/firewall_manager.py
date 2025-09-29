@@ -73,12 +73,6 @@ class FirewallManager:
     def delete_rule(self, rule_name: str) -> None:
         raise NotImplementedError()
 
-    def setup_outbound_drop_rule_hgap(self) -> None:
-        raise NotImplementedError()
-
-    def delete_outbound_drop_rule_hgap(self) -> None:
-        raise NotImplementedError()
-
     def log_firewall_state(self, header: str) -> None:
         try:
             log.info(f"{header}:\n{self.get_state()}")
@@ -362,13 +356,13 @@ class NfTables(FirewallManager):
         download failures)
         """
         command = ["nft", "-f", "-"]
-        input = """
+        command_input = """
             add table ip e2etest
             add chain ip e2etest output {{ type filter hook output priority 0 ; }}
             add rule ip e2etest output ip daddr {0} tcp dport 32526 drop
         """.format(self._wire_server_address)
-        log.info(f"Executing command: {command}\nwith input: {input}")
-        shellutil.run_command(command, input=input)
+        log.info(f"Executing command: {command}\nwith input: {command_input}")
+        shellutil.run_command(command, input=command_input)
 
     def delete_outbound_drop_rule_hgap(self) -> None:
         """

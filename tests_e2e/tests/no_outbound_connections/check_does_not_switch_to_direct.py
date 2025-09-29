@@ -98,10 +98,10 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 log.info("")
                 log.info("Reapplying the VM to force new incarnation...")
                 self._context.vm.reapply(timeout=timeout)
-            except TimeoutError as e:
+            except TimeoutError as ex:
                 # Timeout is expected.
-                if f"[Reapply {self._context.vm.resource_group}:{self._context.vm.name}] did not complete within {timeout} seconds" not in ustr(e):
-                    fail(f"Caught unexpected TimeoutError while trying to reapply the VM:\n{e}")
+                if f"[Reapply {self._context.vm.resource_group}:{self._context.vm.name}] did not complete within {timeout} seconds" not in ustr(ex):
+                    fail(f"Caught unexpected TimeoutError while trying to reapply the VM:\n{ex}")
                 log.info("Test will not wait for reapply operation to finish at CRP level, as it is expected to fail "
                          "due to extension failures.")
         except Exception as e:
@@ -117,7 +117,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             log.info("")
             log.info("Checking agent log to verify that CSE failed to install due to download failures on HGAP and direct channels...")
             try:
-                expected_message = '.*Microsoft.Azure.Extensions.CustomScript.*\[ExtensionError\] Failed to get ext handler pkgs.*\[HttpError\] Download failed both on the primary and fallback channels'
+                expected_message = r'.*Microsoft.Azure.Extensions.CustomScript.*\[ExtensionError\] Failed to get ext handler pkgs.*\[HttpError\] Download failed both on the primary and fallback channels'
                 command = f"check_data_in_agent_log.py --after-timestamp {start_time} --data '{expected_message}'"
                 log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
                 break
