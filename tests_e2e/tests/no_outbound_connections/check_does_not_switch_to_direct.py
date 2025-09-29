@@ -91,7 +91,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
         except TimeoutError as e:
             # Timeout is expected.
             if f"[Enable Microsoft.Azure.Extensions.CustomScript] did not complete within {timeout} seconds" not in ustr(e):
-                fail("Caught unexpected TimeoutError while trying to install CSE:\n%s", e)
+                fail(f"Caught unexpected TimeoutError while trying to install CSE:\n{e}")
             log.info("Test will not wait for CSE operation to finish at CRP level, as it is expected to fail due to "
                      "download failures. Will check the agent log later in test to assert that CSE failed.")
             # The agent is only fetching goal states via WireServer. Reapply the VM so that the incarnation is quickly
@@ -103,11 +103,11 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             except TimeoutError as e:
                 # Timeout is expected.
                 if f"[Reapply {self._context.vm.resource_group}:{self._context.vm.name}] did not complete within {timeout} seconds" not in ustr(e):
-                    fail("Caught unexpected TimeoutError while trying to reapply the VM:\n%s", e)
+                    fail(f"Caught unexpected TimeoutError while trying to reapply the VM:\n{e}")
                 log.info("Test will not wait for reapply operation to finish at CRP level, as it is expected to fail "
                          "due to extension failures.")
         except Exception as e:
-            fail("Caught unexpected exception while trying to install CSE:\n%s", e)
+            fail(f"Caught unexpected exception while trying to install CSE:\n{e}")
 
         # Check the agent log to verify that CSE failed to install due to download failures on the HGAP and direct
         # channels
@@ -127,7 +127,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                     log.info("CSE has not failed, retrying in 5 minutes...")
                     continue
                 else:
-                    fail("Could not find agent log indicating that CSE failed:\n%s", e)
+                    fail(f"Could not find agent log indicating that CSE failed:\n{e}")
 
         # Check the agent log to verify that there is no log indicating that the agent switched to the direct channel
         try:
@@ -139,7 +139,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             fail("Found agent log indicating that the agent switched to the Direct channel.")
         except CommandError as e:
             if 'Did not find data' not in ustr(e):
-                fail("Caught unexpected exception while checking agent log:\n%s", e)
+                fail(f"Caught unexpected exception while checking agent log:\n{e}")
             else:
                 log.info("Did not find agent log indicating that the agent switched to the Direct channel (as expected).")
 
@@ -156,6 +156,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             # 2025-09-26T21:20:30.678939Z ERROR ExtHandler ExtHandler Event: name=Microsoft.Azure.Extensions.CustomScript, op=None, message=[ExtensionError] Failed to get ext handler pkgs
             # 		Inner error: [ProtocolError] Failed to retrieve extension manifest. Error: [ExtensionDownloadError] Timeout downloading extension manifest. Elapsed: 0:05:02.367196 URIs tried: 1/3. Last error: [HttpError] Download failed both on the primary and fallback channels. Primary: [[ProtocolError] HostGAPlugin: Host plugin channel is not available] Fallback: [[HttpError] [HTTP Failed] GET https://umsawhl4grhgzs0z1rmq.blob.core.windows.net/5237dd14-0aad-f051-0fad-1e33e1b63091/5237dd14-0aad-f051-0fad-1e33e1b63091_manifest.xml -- IOError timed out -- 6 attempts made], duration=0
             # 2025-09-26T21:23:32.966850Z ERROR ExtHandler ExtHandler Event: name=WALinuxAgent, op=ExtensionProcessing, message=Failed to report vm agent status: [ProtocolError] Failed to upload status blob via either channel, duration=0
+            # 2025-09-26T22:39:22.448658Z WARNING CollectLogsHandler ExtHandler Failed to upload logs. Error: [ProtocolError] HostGAPlugin: HostGAPlugin is not available
             #
             {
                 'message': r"Exception Get API versions: \[HttpError\] \[HTTP Failed\] GET http://168.63.129.16:32526/versions"
@@ -180,6 +181,9 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             },
             {
                 'message': r"Failed to upload status blob via either channel"
+            },
+            {
+                'message': r"Failed to upload logs. Error: \[ProtocolError\] HostGAPlugin: HostGAPlugin is not available"
             }
         ]
 
