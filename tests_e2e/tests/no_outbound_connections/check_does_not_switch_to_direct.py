@@ -53,24 +53,22 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 log.info("Deleted CSE.")
                 break
 
-        # Stop the agent service to add a DROP rule for outbound requests to HGAP and disable FastTrack to avoid
-        # errors fetching VmSettings which would block goal state processing, and restart the agent.
+        # Stop the agent service
         log.info("")
         log.info("Stopping the agent...")
         command = 'agent-service stop'
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
-        #
-        # log.info("")
-        # log.info("Adding DROP rule for outbound requests to HGAP...")
-        # command = 'iptables -I OUTPUT -d 168.63.129.16 -p tcp --dport 32526 -j DROP'
-        # log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
-        #
 
-        log.info("blah blah")
-        self._run_remote_test(ssh_client, "no_outbound_connections-add_firewall_rule.py", use_sudo=True)
-
+        # Add a DROP rule for outbound requests to HGAP port
         log.info("")
-        log.info("Disabling FastTrack and restarting the agent...")
+        log.info("Adding DROP rule for outbound requests to HGAP port...")
+        self._run_remote_test(ssh_client, "no_outbound_connections-manage_firewall_rule.py --action add", use_sudo=True)
+
+        #  Disable FastTrack to avoid errors fetching VmSettings which would block goal state processing
+        #  Disable Firewall to prevent the agent from resetting the firewall rules
+        #  Restart the agent
+        log.info("")
+        log.info("Disabling FastTrack, firewall, and restarting the agent...")
         command = 'update-waagent-conf Debug.EnableFastTrack=n OS.EnableFirewall=n'
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
 
@@ -82,8 +80,8 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             self._context.vm,
             VmExtensionIds.CustomScript)
         # The extension will fail to install due to download failures, but the agent will not be able to report
-        # status due to the DROP rule and no outbound connectivity, so we set a short 30 second timeout to avoid
-        # waiting for the operation to fail at the CRP level.
+        # status due to the DROP rule and no outbound connectivity, so we set a short timeout to avoid waiting for the
+        # operation to fail at the CRP level.
         timeout = 10
         start_time = ssh_client.run_command("date --utc '+%Y-%m-%dT%TZ'").rstrip()  # Record the time we enable CSE
         try:
@@ -110,10 +108,11 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             fail(f"Caught unexpected exception while trying to install CSE:\n{e}")
 
         # Check the agent log to verify that CSE failed to install due to download failures on the HGAP and direct
-        # channels
+        # channels.
         # Wait up to 15 minutes for the agent to process goal state and attempt to install CSE. There will be many
         # retries which will delay goal state processing, so we allow up to 15 minutes.
         for attempt in range(3):
+            log.info("Sleeping 5 minutes before checking agent log for CSE failure...")
             sleep(5*60)
             log.info("")
             log.info("Checking agent log to verify that CSE failed to install due to download failures on HGAP and direct channels...")
@@ -124,7 +123,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 break
             except CommandError as e:
                 if attempt < 2:
-                    log.info("CSE has not failed, retrying in 5 minutes...")
+                    log.info("CSE has not failed.")
                     continue
                 else:
                     fail(f"Could not find agent log indicating that CSE failed:\n{e}")
@@ -136,12 +135,37 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             unexpected_message = 'Default channel changed to Direct channel.'
             command = f"check_data_in_agent_log.py --data '{unexpected_message}'"
             log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
+            # We expect check_data_in_agent_log.py to fail because it should not find the expected data. If the script
+            # did not fail, fail the test.
             fail("Found agent log indicating that the agent switched to the Direct channel.")
         except CommandError as e:
+            # We expect check_data_in_agent_log.py to fail because it did not find the expected data. If it failed for
+            # any other reason, the test should fail.
             if 'Did not find data' not in ustr(e):
                 fail(f"Caught unexpected exception while checking agent log:\n{e}")
-            else:
-                log.info("Did not find agent log indicating that the agent switched to the Direct channel (as expected).")
+            log.info("Did not find agent log indicating that the agent switched to the Direct channel (as expected).")
+
+        # Remove drop rule for outbound requests to HGAP port and assert that CSE can be installed successfully.
+        # Stop the agent service
+        log.info("")
+        log.info("Stopping the agent...")
+        command = 'agent-service stop'
+        log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
+
+        # Delete DROP rule for outbound requests to HGAP port
+        log.info("")
+        log.info("Deleting DROP rule for outbound requests to HGAP port...")
+        self._run_remote_test(ssh_client, "no_outbound_connections-manage_firewall_rule.py --action delete", use_sudo=True)
+
+        #  Re-enable FastTrack and Firewall. Restart the agent.
+        log.info("")
+        log.info("Re-enabling FastTrack, firewall, and restarting the agent...")
+        command = 'update-waagent-conf Debug.EnableFastTrack=y OS.EnableFirewall=y'
+        log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
+
+        # Enable CSE, should succeed now that HGAP downloads are working.
+        custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"}, timeout=timeout)
+        log.info("CSE succeeded as expected.")
 
     def get_ignore_error_rules(self) -> List[Dict[str, Any]]:
         return [
@@ -159,16 +183,16 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
             # 2025-09-26T22:39:22.448658Z WARNING CollectLogsHandler ExtHandler Failed to upload logs. Error: [ProtocolError] HostGAPlugin: HostGAPlugin is not available
             #
             {
-                'message': r"Exception Get API versions: \[HttpError\] \[HTTP Failed\] GET http://168.63.129.16:32526/versions"
+                'message': r"HostGAPlugin: Exception Get API versions: \[HttpError\] \[HTTP Failed\] GET http://168.63.129.16:32526/versions"
             },
             {
-                'message': r"op=HealthObservation.*\"IsHealthy\": false"
+                'message': r"Event: name=WALinuxAgent, op=HealthObservation, message={\"Value\": \"\", \"ObservationName\": \"GuestAgentPluginVersions\", \"Description\": \"\", \"IsHealthy\": false}, duration=0"
             },
             {
-                'message': r"op=InitializeHostPlugin"
+                'message': r"Event: name=WALinuxAgent, op=InitializeHostPlugin, message=, duration=0"
             },
             {
-                'message': r"Failed to fetch artifacts profile from blob"
+                'message': r"Failed to fetch artifacts profile from blob.*"
             },
             {
                 'message': r"Can't download the artifacts profile blob; will assume the VM is not on hold."
@@ -177,10 +201,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 'message': r"message=\[ExtensionError\] Failed to get ext handler pkgs"
             },
             {
-                'message': r"Failed to upload status blob via either channel"
-            },
-            {
-                'message': r"Failed to upload status blob via either channel"
+                'message': r"Failed to report vm agent status: \[ProtocolError\] Failed to upload status blob via either channel"
             },
             {
                 'message': r"Failed to upload logs. Error: \[ProtocolError\] HostGAPlugin: HostGAPlugin is not available"

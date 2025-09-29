@@ -15,17 +15,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# This script deleting the firewalld rules and ensure deleted rules added back to the firewalld rule set after agent start
+# This script is used to add or delete the DROP rule which drops outbound traffic to HGAP port
 #
+import argparse
 
-from azurelinuxagent.common.utils import shellutil
 from tests_e2e.tests.lib.firewall_manager import FirewallManager
+from tests_e2e.tests.lib.logging import log
 
 
 def main():
-    # Add drop rule
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-a', '--action', required=True)
+    args = parser.parse_args()
+
+    if args.action not in ["add", "delete"]:
+        raise Exception("Invalid action. Supported actions are 'add' and 'delete'")
+
     firewall_manager = FirewallManager.create()
-    firewall_manager.create_outbound_drop_rule()
+
+    if args.action == "add":
+        # Add drop rule
+        firewall_manager.setup_outbound_drop_rule_hgap()
+        log.info("Successfully setup outbound drop rule for hgap port")
+    else:
+        # Delete drop rule
+        firewall_manager.delete_outbound_drop_rule_hgap()
+        log.info("Successfully deleted outbound drop rule for hgap port")
 
 
 if __name__ == "__main__":

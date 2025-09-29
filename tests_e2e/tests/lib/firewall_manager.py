@@ -73,6 +73,12 @@ class FirewallManager:
     def delete_rule(self, rule_name: str) -> None:
         raise NotImplementedError()
 
+    def setup_outbound_drop_rule_hgap(self) -> None:
+        raise NotImplementedError()
+
+    def delete_outbound_drop_rule_hgap(self) -> None:
+        raise NotImplementedError()
+
     def log_firewall_state(self, header: str) -> None:
         try:
             log.info(f"{header}:\n{self.get_state()}")
@@ -199,11 +205,19 @@ class IpTables(_IpTablesFirewalldManager):
     def _get_accept_drop_command(self, command_option: str) -> str:
         return f"sudo iptables -w -t security {command_option} OUTPUT -d {self._wire_server_address} -p tcp -m conntrack --ctstate INVALID,NEW -j DROP"
 
-    def create_outbound_drop_rule(self):
+    def setup_outbound_drop_rule_hgap(self) -> None:
         """
-        Creates a DROP rule for outbound requests (used in the no_outbound_connections test to force failures)
+        Creates a DROP rule for outbound traffic to HGAP port (used in the no_outbound_connections test to force
+        download failures)
         """
         command = f"sudo iptables -I OUTPUT -d {self._wire_server_address} -p tcp --dport 32526 -j DROP"
+        self._log_and_run_command(command)
+
+    def delete_outbound_drop_rule_hgap(self) -> None:
+        """
+        Deletes DROP rule for outbound traffic to HGAP port in e2etest table (used in the no_outbound_connections test)
+        """
+        command = f"sudo iptables -D OUTPUT -d {self._wire_server_address} -p tcp --dport 32526 -j DROP"
         self._log_and_run_command(command)
 
 
@@ -342,9 +356,28 @@ class NfTables(FirewallManager):
 
         self._log_and_run_command(add_rule_command)
 
-    def create_outbound_drop_rule(self):
+    def setup_outbound_drop_rule_hgap(self) -> None:
         """
-        Creates a DROP rule for outbound requests (used in the no_outbound_connections test to force failures)
+        Creates a DROP rule for outbound traffic to HGAP port (used in the no_outbound_connections test to force
+        download failures)
         """
-        command = f"sudo nft add rule ip walinuxagent output ip daddr {self._wire_server_address} tcp dport 32526 drop"
-        self._log_and_run_command(command)
+        command = ["nft", "-f", "-"]
+        input = """
+            add table ip e2etest
+            add chain ip e2etest output {{ type filter hook output priority 0 ; }}
+            add rule ip e2etest output ip daddr {0} tcp dport 32526 drop
+        """.format(self._wire_server_address)
+        log.info(f"Executing command: {command}\nwith input: {input}")
+        shellutil.run_command(command, input=input)
+
+    def delete_outbound_drop_rule_hgap(self) -> None:
+        """
+        Deletes DROP rule for outbound traffic to HGAP port in e2etest table (used in the no_outbound_connections test)
+        """
+        output: str = shellutil.run_command(["sudo", "nft", "--json", "--handle", "list", "table", "e2etest"])
+        state = json.loads(output)
+        handles = [i["rule"]["handle"] for i in state["nftables"] if i.get("rule") is not None and i["rule"]["table"] == "e2etest"]
+        if len(handles) != 1:
+            raise Exception(f"Expected exactly one rule in the e2etest table.\n{output}")
+
+        self._log_and_run_command(f"sudo nft delete rule ip e2etest output handle {handles[0]}")
