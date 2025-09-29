@@ -112,9 +112,9 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
         # Wait up to 15 minutes for the agent to process goal state and attempt to install CSE. There will be many
         # retries which will delay goal state processing, so we allow up to 15 minutes.
         for attempt in range(3):
+            log.info("")
             log.info("Sleeping 5 minutes before checking agent log for CSE failure...")
             sleep(5*60)
-            log.info("")
             log.info("Checking agent log to verify that CSE failed to install due to download failures on HGAP and direct channels...")
             try:
                 expected_message = r'.*Microsoft.Azure.Extensions.CustomScript.*\[ExtensionError\] Failed to get ext handler pkgs.*\[HttpError\] Download failed both on the primary and fallback channels'
@@ -164,7 +164,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
 
         # Enable CSE, should succeed now that HGAP downloads are working.
-        custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"}, timeout=timeout)
+        custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"})
         log.info("CSE succeeded as expected.")
 
     def get_ignore_error_rules(self) -> List[Dict[str, Any]]:
