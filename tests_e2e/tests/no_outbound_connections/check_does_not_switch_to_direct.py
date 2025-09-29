@@ -71,7 +71,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
 
         log.info("")
         log.info("Disabling FastTrack and restarting the agent...")
-        command = 'update-waagent-conf Debug.EnableFastTrack=n'
+        command = 'update-waagent-conf Debug.EnableFastTrack=n OS.EnableFirewall=n'
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
 
         # Attempt to install CSE. This should fail due to failures to fetch the extension manifest (HGAP downloads will
