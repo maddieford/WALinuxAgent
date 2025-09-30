@@ -57,6 +57,8 @@ class RunCommandBvt(AgentVmTest):
 
         if ssh_client.get_architecture() == "aarch64":
             log.info("Skipping test case for %s, since it has not been published on ARM64", VmExtensionIds.RunCommandHandler)
+        elif not VmExtensionIds.RunCommandHandler.supports_distro(ssh_client.get_distro()):
+            log.info("Skipping test case for %s, since it does not support this distro (%s)", VmExtensionIds.RunCommandHandler, self._context.system_info)
         else:
             test_cases.append(
                 RunCommandBvt.TestCase(
