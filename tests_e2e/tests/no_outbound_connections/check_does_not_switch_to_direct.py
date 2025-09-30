@@ -43,13 +43,13 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
         # fails due to download failures.
         extensions_on_vm = self._context.vm.get_extensions().value
         for ext in extensions_on_vm:
-            if ext.extension.type_properties_type == VmExtensionIds.CustomScript.type:
+            if ext.type_properties_type == VmExtensionIds.CustomScript.type:
                 log.info("CSE is already installed, cleaning it up...")
                 VirtualMachineExtensionClient(self._context.vm,
-                                              VmExtensionIdentifier(publisher=ext.extension.publisher,
-                                                                    ext_type=ext.extension.type_properties_type,
-                                                                    version=ext.extension.type_handler_version),
-                                              resource_name=ext.extension._resource_name).delete()
+                                              VmExtensionIdentifier(publisher=ext.publisher,
+                                                                    ext_type=ext.type_properties_type,
+                                                                    version=ext.type_handler_version),
+                                              resource_name=ext._resource_name).delete()
                 log.info("Deleted CSE.")
                 break
 
