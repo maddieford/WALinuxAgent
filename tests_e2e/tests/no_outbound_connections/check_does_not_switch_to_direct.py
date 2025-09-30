@@ -186,7 +186,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 'message': r"HostGAPlugin: Exception Get API versions: \[HttpError\] \[HTTP Failed\] GET http://168.63.129.16:32526/versions"
             },
             {
-                'message': r"Event: name=WALinuxAgent, op=HealthObservation, message={\"Value\": \"\", \"ObservationName\": \"GuestAgentPluginVersions\", \"Description\": \"\", \"IsHealthy\": false}, duration=0"
+                'message': r"Event: name=WALinuxAgent, op=HealthObservation, message=.*\"ObservationName\": \"GuestAgentPluginVersions\".*"
             },
             {
                 'message': r"Event: name=WALinuxAgent, op=InitializeHostPlugin, message=, duration=0"
