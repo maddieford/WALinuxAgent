@@ -109,9 +109,9 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
 
         # Check the agent log to verify that CSE failed to install due to download failures on the HGAP and direct
         # channels.
-        # Wait up to 15 minutes for the agent to process goal state and attempt to install CSE. There will be many
-        # retries which will delay goal state processing, so we allow up to 15 minutes.
-        for attempt in range(3):
+        # Wait up to 20 minutes for the agent to process goal state and attempt to install CSE. There will be many
+        # retries which will delay goal state processing, so we allow up to 20 minutes.
+        for attempt in range(4):
             log.info("")
             log.info("Sleeping 5 minutes before checking agent log for CSE failure...")
             sleep(5*60)
@@ -122,7 +122,7 @@ class CheckDoesNotSwitchToDirect(AgentVmTest):
                 log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
                 break
             except CommandError as e:
-                if attempt < 2:
+                if attempt < 3:
                     log.info("CSE has not failed.")
                     continue
                 else:
