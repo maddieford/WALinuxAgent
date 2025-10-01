@@ -65,13 +65,13 @@ class CheckFallbackToDirect(AgentVmTest):
         command = 'update-waagent-conf Debug.EnableFastTrack=n OS.EnableFirewall=n'
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
 
-        # Enable CSE and assert that it succeeds
+        # Enable CSE and assert that it succeeds. Allow for longer timeout since FastTrack is disabled and there will be download failures.
         log.info("")
         log.info("Installing CSE...")
         custom_script = VirtualMachineExtensionClient(
             self._context.vm,
             VmExtensionIds.CustomScript)
-        custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"})
+        custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"}, timeout=20*60)
         log.info("CSE succeeded as expected.")
 
         # Check the agent log to verify that the agent did fall back to Direct download channel
