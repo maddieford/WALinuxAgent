@@ -18,6 +18,9 @@
 #
 import uuid
 
+from assertpy import fail
+
+from azurelinuxagent.common.future import ustr
 from tests_e2e.tests.lib.agent_test import AgentVmTest
 from tests_e2e.tests.lib.logging import log
 from tests_e2e.tests.lib.ssh_client import SshClient
@@ -65,14 +68,32 @@ class CheckFallbackToDirect(AgentVmTest):
         command = 'update-waagent-conf Debug.EnableFastTrack=n OS.EnableFirewall=n'
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
 
-        # Enable CSE and assert that it succeeds. Allow for longer timeout since FastTrack is disabled and there will be download failures.
+        # Start the CSE installation. Do not wait for the operation to finish at the CRP level, as we need to reapply
+        # the VM to force a new incarnation for the extension to be processed since FastTrack is disabled.
         log.info("")
-        log.info("Installing CSE...")
+        log.info("Starting CSE installation...")
         custom_script = VirtualMachineExtensionClient(
             self._context.vm,
             VmExtensionIds.CustomScript)
-        custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"}, timeout=20*60)
-        log.info("CSE succeeded as expected.")
+        timeout = 10
+        try:
+            custom_script.enable(settings={'commandToExecute': f"echo '{str(uuid.uuid4())}'"}, timeout=timeout)
+        except TimeoutError as e:
+            # Timeout is expected.
+            if f"[Enable Microsoft.Azure.Extensions.CustomScript] did not complete within {timeout} seconds" not in ustr(e):
+                fail(f"Caught unexpected TimeoutError while trying to install CSE:\n{e}")
+            log.info("Test will not wait for CSE operation to finish at CRP level since a new incarnation needs to be "
+                     "forced with vm reapply for the extension to be processed.")
+            # The agent is only fetching goal states via WireServer. Reapply the VM so that the incarnation is quickly
+            # incremented.
+            log.info("")
+            log.info("Reapplying the VM to force new incarnation...")
+            self._context.vm.reapply()
+
+        # Check the status of custom script to assert that it was installed successfully
+        log.info("")
+        log.info("Asserting CSE was installed successfully...")
+        custom_script.assert_instance_view()
 
         # Check the agent log to verify that the agent did fall back to Direct download channel
         log.info("")
@@ -100,6 +121,26 @@ class CheckFallbackToDirect(AgentVmTest):
         log.info("Re-enabling FastTrack, firewall, and restarting the agent...")
         command = 'update-waagent-conf Debug.EnableFastTrack=y OS.EnableFirewall=y'
         log.info("Remote command [%s] completed:\n%s", command, ssh_client.run_command(command, use_sudo=True))
+
+    def get_ignore_error_rules(self) -> List[Dict[str, Any]]:
+        return [
+            #
+            # Outbound requests to HGAP port is blocked, so the following are expected:
+            #
+            # 2025-10-01T21:56:59.368921Z ERROR ExtHandler ExtHandler HostGAPlugin: Exception Get API versions: [HttpError] [HTTP Failed] GET http://168.63.129.16:32526/versions -- IOError timed out -- 6 attempts made
+            # 2025-10-01T21:56:59.377474Z ERROR ExtHandler ExtHandler Event: name=WALinuxAgent, op=HealthObservation, message={"ObservationName": "GuestAgentPluginVersions", "IsHealthy": false, "Description": "", "Value": ""}, duration=0
+            # 2025-10-01T21:56:59.378208Z ERROR ExtHandler ExtHandler Event: name=WALinuxAgent, op=InitializeHostPlugin, message=, duration=0
+            #
+            {
+                'message': r"HostGAPlugin: Exception Get API versions: \[HttpError\] \[HTTP Failed\] GET http://168.63.129.16:32526/versions"
+            },
+            {
+                'message': r"Event: name=WALinuxAgent, op=HealthObservation, message=.*\"ObservationName\": \"GuestAgentPluginVersions\".*"
+            },
+            {
+                'message': r"Event: name=WALinuxAgent, op=InitializeHostPlugin, message=, duration=0"
+            }
+        ]
 
 
 if __name__ == "__main__":
