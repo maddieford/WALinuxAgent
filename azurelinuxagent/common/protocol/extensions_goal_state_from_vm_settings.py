@@ -29,12 +29,15 @@ from azurelinuxagent.common.utils.flexible_version import FlexibleVersion
 
 # The 'encodedSignature' property is only supported on newer versions of HGAP.
 _MIN_HGAP_VERSION_FOR_EXT_SIGNATURE = FlexibleVersion("1.0.8.159")
+# The 'certificateRevision' property is only supported on newer versions of HGAP.
+_MIN_HGAP_VERSION_FOR_CERTS_REVISION = FlexibleVersion("1.0.8.179")
 
 class ExtensionsGoalStateFromVmSettings(ExtensionsGoalState):
     def __init__(self, etag, json_text, correlation_id):
         super(ExtensionsGoalStateFromVmSettings, self).__init__()
         self._id = "etag_{0}".format(etag)
         self._etag = etag
+        self._certs_revision = -1
         self._svd_sequence_number = 0
         self._hostga_plugin_correlation_id = correlation_id
         self._text = json_text
@@ -65,6 +68,10 @@ class ExtensionsGoalStateFromVmSettings(ExtensionsGoalState):
     @property
     def etag(self):
         return self._etag
+
+    @property
+    def certs_revision(self):
+        return self._certs_revision
 
     @property
     def svd_sequence_number(self):
@@ -175,12 +182,12 @@ class ExtensionsGoalStateFromVmSettings(ExtensionsGoalState):
     def _parse_simple_attributes(self, vm_settings):
         # Sample:
         #     {
-        #         "hostGAPluginVersion": "1.0.8.115",
-        #         "vmSettingsSchemaVersion": "0.0",
-        #         "activityId": "a33f6f53-43d6-4625-b322-1a39651a00c9",
-        #         "correlationId": "9a47a2a2-e740-4bfc-b11b-4f2f7cfe7d2e",
+        #         "hostGAPluginVersion": "1.0.8.179",
+        #         "activityId": "b5538159-c05d-4954-90a4-f6711b127412",
+        #         "correlationId": "0b445115-44fe-4179-be07-26140ca087f9",
         #         "inSvdSeqNo": 1,
-        #         "extensionsLastModifiedTickCount": 637726657706205217,
+        #         "certificatesRevision": 0,
+        #         "extensionsLastModifiedTickCount": 638925059325943600,
         #         "extensionGoalStatesSource": "FastTrack",
         #         ...
         #     }
@@ -189,6 +196,10 @@ class ExtensionsGoalStateFromVmSettings(ExtensionsGoalState):
         host_ga_plugin_version = vm_settings.get("hostGAPluginVersion")
         if host_ga_plugin_version is not None:
             self._host_ga_plugin_version = FlexibleVersion(host_ga_plugin_version)
+
+        if self._host_ga_plugin_version >= _MIN_HGAP_VERSION_FOR_CERTS_REVISION:
+            certs_revision = vm_settings.get("certificatesRevision")
+            self._certs_revision = certs_revision if certs_revision is not None else -1
 
         self._activity_id = self._string_to_id(vm_settings.get("activityId"))
         self._correlation_id = self._string_to_id(vm_settings.get("correlationId"))

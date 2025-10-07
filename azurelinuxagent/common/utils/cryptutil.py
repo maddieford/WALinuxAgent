@@ -175,3 +175,15 @@ class CryptUtil(object):
             raise subprocess.CalledProcessError(command_error.returncode, "openssl cms -decrypt", output=command_error.stdout)
         except Exception as e:
             raise CryptError("Error decoding secret", e)
+
+    def decrypt_secret_utf_8(self, encrypted_password, private_key):
+        try:
+            decoded = base64.b64decode(encrypted_password)
+            args = DECRYPT_SECRET_CMD.format(self.openssl_cmd, private_key).split(' ')
+            output = shellutil.run_command(args, input=decoded, stderr=subprocess.STDOUT, encode_input=False, encode_output=False)
+            return output.decode('utf-8')
+        except shellutil.CommandError as command_error:
+            raise subprocess.CalledProcessError(command_error.returncode, "openssl cms -decrypt", output=command_error.stdout)
+        except Exception as e:
+            raise CryptError("Error decoding secret", e)
+

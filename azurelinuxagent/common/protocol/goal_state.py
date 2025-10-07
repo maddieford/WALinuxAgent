@@ -41,7 +41,9 @@ GOAL_STATE_URI = "http://{0}/machine/?comp=goalstate"
 CERTS_FILE_NAME = "Certificates.xml"
 P7M_FILE_NAME = "Certificates.p7m"
 PFX_FILE_NAME = "Certificates.pfx"
+HGAP_PFX_FILE_NAME = "HgapCertificates.pfx"
 PEM_FILE_NAME = "Certificates.pem"
+HGAP_PEM_FILE_NAME = "HgapCertificates.pem"
 TRANSPORT_CERT_FILE_NAME = "TransportCert.pem"
 TRANSPORT_PRV_FILE_NAME = "TransportPrivate.pem"
 
@@ -233,6 +235,16 @@ class GoalState(object):
             message = "Fetched new vmSettings [HostGAPlugin correlation ID: {0} eTag: {1} source: {2}]".format(vm_settings.hostga_plugin_correlation_id, vm_settings.etag, vm_settings.source)
             self.logger.info(message)
             add_event(op=WALAEventOperation.GoalState, message=message)
+
+        if vm_settings.certs_revision >= 0 and vm_settings_updated:
+            message = "vmSettings includes certsRevision {0}. Will fetch certificates from HGAP.".format(vm_settings.certs_revision)
+            self.logger.info(message)
+            add_event(op=WALAEventOperation.GoalState, message=message)
+
+            certs_content = GoalState._fetch_hgap_certs(self._wire_client, vm_settings.certs_revision)
+            HGAPCertificates(certs_content, self.logger)
+            self.logger.info("")
+
         # Ignore the vmSettings if their source is Fabric (processing a Fabric goal state may require the tenant certificate and the vmSettings don't include it.)
         if vm_settings is not None and vm_settings.source == GoalStateSource.Fabric:
             if vm_settings_updated:
@@ -409,6 +421,19 @@ class GoalState(object):
 
         return vm_settings, vm_settings_updated
 
+    @staticmethod
+    def _fetch_hgap_certs(wire_client, certificates_revision):
+        """
+        Issues an HTTP request (HostGAPlugin) for the certs and returns the response.
+        """
+        try:
+            certs_content = wire_client.get_host_plugin().fetch_certs(certificates_revision)
+            return certs_content
+        except Exception as e:
+            message = "failure in fetching certs: {0}".format(ustr(e))
+            logger.warn(message)
+            add_event(op=WALAEventOperation.HostPlugin, message=message, is_success=False)
+
     def _fetch_full_wire_server_goal_state(self, incarnation, xml_doc):
         """
         Issues HTTP requests (to the WireServer) for each of the URIs in the goal state (ExtensionsConfig, Certificate, Remote Access users, etc)
@@ -478,6 +503,9 @@ class GoalState(object):
                     if self._save_to_history:
                         self._history.save_remote_access(xml_text)
 
+            full_config_uri = findtext(xml_doc, "FullConfig")
+            full_config = self._wire_client.fetch_config(full_config_uri, self._wire_client.get_header())
+
             self._incarnation = incarnation
             self._role_instance_id = role_instance_id
             self._role_config_name = role_config_name
@@ -514,6 +542,116 @@ class HostingEnv(object):
 class SharedConfig(object):
     def __init__(self, xml_text):
         self.xml_text = xml_text
+
+
+class HGAPCertificates(LogEvent):
+    def __init__(self, certs_content, logger_):
+        super(HGAPCertificates, self).__init__(logger_)
+        self.summary = []
+        self._crypt_util = CryptUtil(conf.get_openssl_cmd())
+
+        try:
+            for cert in certs_content.get('certificates'):
+                base64_encoded_cert = cert.get('certificateinbase64')
+                cert_thumbprint = cert.get('thumbprint')
+                b64_file = os.path.join(conf.get_lib_dir(), cert_thumbprint + '.b64')
+                fileutil.write_file(b64_file, base64_encoded_cert)
+                pfx_file = os.path.join(conf.get_lib_dir(), HGAP_PFX_FILE_NAME)
+                command = [self._crypt_util.openssl_cmd, "base64", "-d", "-A", "-in", b64_file, "-out", pfx_file]
+                shellutil.run_command(command)
+                self.info(WALAEventOperation.GoalStateCertificates, "Created pfx at: {0}", pfx_file)
+                self._convert_certificates_pfx_to_pem(pfx_file)
+                pem_file = os.path.join(conf.get_lib_dir(), HGAP_PEM_FILE_NAME)
+                self.info(WALAEventOperation.GoalStateCertificates, "Created hgappem at: {0}", pem_file)
+
+                self.summary = self._extract_certificate(pem_file)
+
+                for c in self.summary:
+                    self.info(WALAEventOperation.GoalStateCertificates, "Downloaded certificate {0}", c)
+        except Exception as e:
+            self.error(WALAEventOperation.GoalStateCertificates, "Error fetching the goal state certificates from hgap: {0}",
+                       ustr(e))
+
+    def _remove_file(self, file):
+        if os.path.exists(file):
+            try:
+                os.remove(file)
+            except Exception as e:
+                self.warn(WALAEventOperation.GoalStateCertificates, "Failed to remove {0}: {1}", file, ustr(e))
+
+    def _convert_certificates_pfx_to_pem(self, pfx_file):
+        """
+        Convert the pfx file to pem file.
+        """
+        pem_file = os.path.join(conf.get_lib_dir(), HGAP_PEM_FILE_NAME)
+
+        for nomacver in [True, False]:
+            try:
+                self._crypt_util.convert_pfx_to_pem(pfx_file, nomacver, pem_file)
+                return pem_file
+            except shellutil.CommandError as e:
+                self._remove_file(pem_file)  # An error may leave an empty pem file, which can produce a failure on some versions of open SSL (e.g. 3.2.2) on the next invocation
+                self.warn(WALAEventOperation.GoalState, "Error converting PFX to PEM [-nomacver: {0}]: {1}", nomacver, ustr(e))
+                continue
+
+        raise Exception("Cannot convert PFX to PEM")
+
+    def _extract_certificate(self, pem_file):
+        """
+        Parse the certificates and private keys from the pem file and store them in the certificates directory.
+        """
+        hgap_cert_dir = os.path.join(conf.get_lib_dir(), "hgap_certs")
+        # The parsing process use public key to match prv and crt.
+        private_keys = {}  # map of private keys indexed by public key
+        thumbprints = {}  # map of thumbprints indexed by public key
+        buffer = []  # buffer for reading lines belonging to a certificate or private key
+        index = 0
+
+        with open(pem_file) as pem:
+            for line in pem.readlines():
+                buffer.append(line)
+                if re.match(r'[-]+END.*KEY[-]+', line):
+                    tmp_file = HGAPCertificates._write_to_tmp_file(index, 'prv', buffer)
+                    pub = self._crypt_util.get_pubkey_from_prv(tmp_file)
+                    private_keys[pub] = tmp_file
+                    buffer = []
+                    index += 1
+                elif re.match(r'[-]+END.*CERTIFICATE[-]+', line):
+                    tmp_file = HGAPCertificates._write_to_tmp_file(index, 'crt', buffer)
+                    pub = self._crypt_util.get_pubkey_from_crt(tmp_file)
+                    thumbprint = self._crypt_util.get_thumbprint_from_crt(tmp_file)
+                    thumbprints[pub] = thumbprint
+                    # Rename crt with thumbprint as the file name
+                    crt = "{0}.crt".format(thumbprint)
+                    os.rename(tmp_file, os.path.join(hgap_cert_dir, crt))
+                    buffer = []
+                    index += 1
+
+        # Rename prv key with thumbprint as the file name
+        for pubkey in private_keys:
+            thumbprint = thumbprints[pubkey]
+            if thumbprint:
+                tmp_file = private_keys[pubkey]
+                prv = "{0}.prv".format(thumbprint)
+                os.rename(tmp_file, os.path.join(hgap_cert_dir, prv))
+            else:
+                # Since private key has *no* matching certificate, it will not be named correctly
+                self.warn(WALAEventOperation.GoalState, "Found a private key with no matching cert/thumbprint!")
+
+        certificates = []
+        for pubkey, thumbprint in thumbprints.items():
+            has_private_key = pubkey in private_keys
+            certificates.append({"thumbprint": thumbprint, "hasPrivateKey": has_private_key})
+        return certificates
+
+    @staticmethod
+    def _write_to_tmp_file(index, suffix, buf):
+        hgap_cert_dir = os.path.join(conf.get_lib_dir(), "hgap_certs")
+        if not os.path.exists(hgap_cert_dir):
+            fileutil.mkdir(hgap_cert_dir, mode=0o755)
+        file_name = os.path.join(hgap_cert_dir, "{0}.{1}".format(index, suffix))
+        fileutil.write_file(file_name, "".join(buf))
+        return file_name
 
 
 class Certificates(LogEvent):

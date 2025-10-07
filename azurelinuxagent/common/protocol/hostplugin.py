@@ -27,19 +27,22 @@ from azurelinuxagent.common import logger, conf
 from azurelinuxagent.common.errorstate import ErrorState, ERROR_STATE_HOST_PLUGIN_FAILURE
 from azurelinuxagent.common.event import WALAEventOperation, add_event
 from azurelinuxagent.common.exception import HttpError, ProtocolError, ResourceGoneError
+from azurelinuxagent.common.protocol.extensions_goal_state_from_vm_settings import _CaseFoldedDict
+from azurelinuxagent.common.utils.cryptutil import CryptUtil
 from azurelinuxagent.common.utils.flexible_version import FlexibleVersion
 from azurelinuxagent.common.future import ustr, httpclient, UTC, datetime_min_utc
 from azurelinuxagent.common.protocol.healthservice import HealthService
 from azurelinuxagent.common.protocol.extensions_goal_state import VmSettingsParseError, GoalStateSource
 from azurelinuxagent.common.protocol.extensions_goal_state_factory import ExtensionsGoalStateFactory
-from azurelinuxagent.common.utils import restutil, textutil, timeutil
-from azurelinuxagent.common.utils.textutil import remove_bom
+from azurelinuxagent.common.utils import restutil, textutil, timeutil, fileutil
+from azurelinuxagent.common.utils.textutil import remove_bom, get_bytes_from_pem
 from azurelinuxagent.common.version import AGENT_NAME, AGENT_VERSION, PY_VERSION_MAJOR
 
 HOST_PLUGIN_PORT = 32526
 
 URI_FORMAT_GET_API_VERSIONS = "http://{0}:{1}/versions"
 URI_FORMAT_VM_SETTINGS = "http://{0}:{1}/vmSettings"
+URI_FORMAT_CERTS = "http://{0}:{1}/certificates/{2}"
 URI_FORMAT_GET_EXTENSION_ARTIFACT = "http://{0}:{1}/extensionArtifact"
 URI_FORMAT_PUT_VM_STATUS = "http://{0}:{1}/status"
 URI_FORMAT_PUT_LOG = "http://{0}:{1}/vmAgentLog"
@@ -57,6 +60,8 @@ _HEADER_HOST_CONFIG_NAME = "x-ms-host-config-name"
 _HEADER_ARTIFACT_LOCATION = "x-ms-artifact-location"
 _HEADER_ARTIFACT_MANIFEST_LOCATION = "x-ms-artifact-manifest-location"
 _HEADER_VERIFY_FROM_ARTIFACTS_BLOB = "x-ms-verify-from-artifacts-blob"
+_HEADER_TRANSPORT_CERT = "x-ms-guest-agent-public-x509-cert"
+_HEADER_CIPHER_NAME = "x-ms-cipher-name"
 
 MAXIMUM_PAGEBLOB_PAGE_SIZE = 4 * 1024 * 1024  # Max page size: 4MB
 
@@ -175,6 +180,23 @@ class HostPluginProtocol(object):
            _HEADER_CONTAINER_ID: self.container_id,
            _HEADER_HOST_CONFIG_NAME: self.role_config_name,
            _HEADER_CORRELATION_ID: correlation_id
+        }
+
+        return url, headers
+
+    def get_certs_request(self, certs_revision):
+        url = URI_FORMAT_CERTS.format(self.endpoint, HOST_PLUGIN_PORT, certs_revision)
+
+        trans_cert_file = os.path.join(conf.get_lib_dir(), "TransportCert.pem")
+        try:
+            content = fileutil.read_file(trans_cert_file)
+        except IOError as e:
+            raise ProtocolError("Failed to read {0}: {1}".format(trans_cert_file, e))
+
+        cert = get_bytes_from_pem(content)
+        headers = {
+           _HEADER_TRANSPORT_CERT: cert,
+           _HEADER_CIPHER_NAME: "AES256_CBC"
         }
 
         return url, headers
@@ -579,6 +601,24 @@ class HostPluginProtocol(object):
             raise ProtocolError(message)
         finally:
             self._vm_settings_error_reporter.report_summary()
+
+    def fetch_certs(self, certs_revision):
+        try:
+            url, headers = self.get_certs_request(certs_revision)
+            response = restutil.http_get(url, headers=headers, use_proxy=False, max_retry=1, return_raw_response=True)
+            response_dict = _CaseFoldedDict.from_dict(json.loads(ustr(response.read(), encoding='utf-8')))
+            encypted_certs = response_dict.get("Pkcs7BlobWithPfxContents")
+            prv_key = os.path.join(conf.get_lib_dir(), "TransportPrivate.pem")
+            trans_cert = os.path.join(conf.get_lib_dir(), "TransportCert.pem")
+            pfx_file = os.path.join(conf.get_lib_dir(), "HgapCertificates2.pfx")
+            crypt_util = CryptUtil(conf.get_openssl_cmd())
+            # decrypt with 'openssl cms -decrypt -inform DER -inkey <prv_key>'
+            certs = crypt_util.decrypt_secret_utf_8(encypted_certs, prv_key)
+            return _CaseFoldedDict.from_dict(json.loads(certs))
+        except Exception as e:
+            message = "failure in fetching certs: {0}".format(ustr(e))
+            logger.warn(message)
+            add_event(op=WALAEventOperation.HostPlugin, message=message, is_success=False)
 
 
 class VmSettingsNotSupported(TypeError):
