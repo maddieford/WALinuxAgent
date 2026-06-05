@@ -375,7 +375,7 @@ class ExtensionPolicyEngine(_PolicyEngine):
         Return whether we should allow extension download based on policy.
         If policy feature not enabled, return True.
         If allowListedExtensionsOnly=true, return true only if extension present in "extensions" allowlist.
-        If allowListedExtensions=false, return true always.
+        If allowListedExtensionsOnly=false, return true always.
         """
         if not self._policy_enforcement_enabled:
             return True
