@@ -211,6 +211,8 @@ def report_validation_event(op, level, message, name, version, duration):
         - WARNING: is_success=True. WARNING-level events should not surface in release error monitoring queries while
             we are collecting telemetry for this feature. TODO: is_success = False once we start enforcing signature validation
         - INFO: is_success=True.
+
+    TODO: for extension signature validation, add '[Name-Version]' prefix to log messages
     """
     if level == logger.LogLevel.ERROR:
         logger.error(message)
