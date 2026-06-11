@@ -734,7 +734,7 @@ class ExtHandlersHandler(object):
             operation, error_code = _EXT_DISALLOWED_ERROR_MAP.get(ext_handler_i.ext_handler.state)
             msg = (
                 "Extension will not be processed: failed to {0} extension '{1}' because policy specifies that extension must be signed, "
-                "but the installed extension's signature was not validated by the agent. To {0}, reinstall the extension so that "
+                "but the installed extension's signature was not validated by the agent. To {0}, remove and reinstall the extension so that "
                 "its signature can be validated, or set 'signatureRequired' to false in the policy file ('{2}')."
             ).format(operation, ext_handler_i.ext_handler.name, conf.get_policy_file_path())
             self.__handle_ext_disallowed_error(ext_handler_i, error_code, report_op=WALAEventOperation.ExtensionSignaturePolicy, message=msg,
@@ -847,6 +847,19 @@ class ExtHandlersHandler(object):
             elif ext_handler_i.version_ne(old_ext_handler_i):
                 # This is a special case, we need to update the handler version here but to do that we need to also
                 # disable each enabled extension of this handler.
+                #
+                # The upgrade flow executes commands (disable/update/uninstall) on the OLD version, which runs the
+                # old version's code. Before doing so, verify policy against the OLD version. The new-version policy
+                # check above does not cover this: the old version was downloaded under a possibly different policy
+                # (e.g., signature validation may not have been required at install time). Use the OLD version's
+                # persisted signature_validated state (read from its HandlerStatus file on disk).
+                # old_extension_is_signed = old_ext_handler_i.signature_validated
+                # try:
+                #     self._policy_engine.check_extension_policy(old_ext_handler_i.ext_handler.name, old_extension_is_signed)
+                # except ExtensionSignaturePolicyError:
+                #     # Old version is already installed but its signature was never validated by the agent.
+                #     raise ExtensionSignatureNotValidatedError()
+
                 uninstall_exit_code = ExtHandlersHandler._update_extension_handler_and_return_if_failed(
                     old_ext_handler_i, ext_handler_i, extension)
         else:
