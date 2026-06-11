@@ -47,12 +47,12 @@ _agent_start_time = datetime.datetime.now(UTC)
 
 class SignatureValidationTimeout(object):
     """
-    Tracks whether signature validation should be disabled due to a timeout. 
-    
-    A timeout during extension signature validation should not disable validation for agent signature validation, 
-    and vice versa. This is because extension packages are typically larger than agent packages, and are more likely 
-    to experience timeouts. 
-    
+    Tracks whether signature validation should be disabled due to a timeout.
+
+    A timeout during extension signature validation should not disable validation for agent signature validation,
+    and vice versa. This is because extension packages are typically larger than agent packages, and are more likely
+    to experience timeouts.
+
     Disabling extension signature validation should only be done when the customer has not opted into enforcement
     of extension signature validation.
 
@@ -137,7 +137,7 @@ def _get_openssl_version():
 class _OpenSSLVersionCheck(object):
     """
     Caches the result of the OpenSSL version capability check performed by
-    openssl_version_supported_for_signature_validation(). Caching avoids repeated subprocess calls, 
+    openssl_version_supported_for_signature_validation(). Caching avoids repeated subprocess calls,
     log noise, and repeated telemetry events.
 
     TODO: This is a temporary workaround while we collect telemetry on the signature validation feature; remove for
@@ -206,36 +206,26 @@ def report_validation_event(op, level, message, name, version, duration):
     'level' is expected to be one of logger.LogLevel.INFO, WARNING, or ERROR. If level is WARNING, prefix with "[WARNING]"
     in telemetry, and append a message that failure can be ignored.
 
-    Log messages are prefixed with the package identifier '[Name-Version] ' (or '[Name] ' if version is empty) so that
-    messages can easily be correlated to a specific package in the local log. The prefix is not applied to
-    the telemetry message because telemetry events already have 'name' and 'version' columns.
-
     Telemetry 'is_success' behavior based on log level:
         - ERROR: is_success=False, these should surface in release error monitoring queries.
         - WARNING: is_success=True. WARNING-level events should not surface in release error monitoring queries while
             we are collecting telemetry for this feature. TODO: is_success = False once we start enforcing signature validation
         - INFO: is_success=True.
     """
-    # Prefix log messages with the package identifier for easy correlation in the local log. Telemetry events have
-    # structured name/version columns so the prefix is not applied there.
-    log_prefix = ""
-    if name != "":
-        log_prefix = "[{0}-{1}] ".format(name, version) if version != "" else "[{0}] ".format(name)
-
     if level == logger.LogLevel.ERROR:
-        logger.error("{0}{1}".format(log_prefix, message))
+        logger.error(message)
         event_msg = message
         is_success = False
     elif level == logger.LogLevel.WARNING:
-        suffix = "\nThis failure can be safely ignored; will continue processing the package."
-        logger.warn("{0}{1}{2}".format(log_prefix, message, suffix))
-        event_msg = "[WARNING] {0}{1}".format(message, suffix)
+        message = "{0}\nThis failure can be safely ignored; will continue processing the package.".format(message)
+        logger.warn(message)
+        event_msg = "[WARNING] {0}".format(message)
         is_success = True
     else:
         # Log as INFO. If the level is invalid (i.e., not INFO, WARNING, or ERROR), treat it as INFO and prepend a warning to the message.
         if level != logger.LogLevel.INFO:
             message = "Invalid log level '{0}', reporting event at 'INFO' level instead. {1}".format(level, message)
-        logger.info("{0}{1}".format(log_prefix, message))
+        logger.info(message)
         event_msg = message
         is_success = True
 
