@@ -92,6 +92,12 @@
             "apiVersion": "2023-06-01",
             "properties": {
                 "publicIPAllocationMethod": "Dynamic",
+                "ipTags": [
+                    {
+                        "ipTagType": "FirstPartyUsage",
+                        "tag": "/CPlatRuntimeLinuxVMAgentTests"
+                    }
+                ],
                 "dnsSettings": {
                     "domainNameLabel": "[parameters('vmName')]"
                 }
@@ -242,8 +248,17 @@
                                                 "primary": true,
                                                 "publicIPAddressConfiguration": {
                                                     "name": "[variables('publicIPAddressName')]",
+                                                    "sku": {
+                                                        "name": "Standard"
+                                                    },
                                                     "properties": {
-                                                        "idleTimeoutInMinutes": 15
+                                                        "idleTimeoutInMinutes": 15,
+                                                        "ipTags": [
+                                                            {
+                                                                "ipTagType": "FirstPartyUsage",
+                                                                "tag": "/CPlatRuntimeLinuxVMAgentTests"
+                                                            }
+                                                        ]
                                                     }
                                                 },
                                                 "subnet": {
