@@ -30,6 +30,7 @@ class PassRemoteTest(AgentVmTest):
     """
     def run(self):
         ssh_client = self._context.create_ssh_client()
+        failures = []
 
         try:
             iptables_version = ssh_client.run_command("iptables --version", use_sudo=True).strip()
@@ -45,9 +46,26 @@ class PassRemoteTest(AgentVmTest):
                     unresolved_modules.append("{0} (exit code: {1})".format(module_name, error.exit_code))
 
             if len(unresolved_modules) > 0:
-                fail(
+                failures.append(
                     "iptables is available, but modinfo could not resolve the required kernel modules: {0}".format(
                         ", ".join(unresolved_modules)))
+
+        try:
+            firewalld_state = ssh_client.run_command("firewall-cmd --state", use_sudo=True).strip()
+        except CommandError:
+            log.info("firewalld is not available or is not running; skipping the backend check")
+        else:
+            if firewalld_state == "running":
+                firewalld_backend = ssh_client.run_command(
+                    "firewall-cmd --get-backend", use_sudo=True).strip()
+                log.info("firewalld is running with the %s backend", firewalld_backend)
+                if firewalld_backend == "nftables":
+                    failures.append("firewalld is running with the nftables backend")
+            else:
+                log.info("firewalld is present, but not running: %s", firewalld_state)
+
+        if len(failures) > 0:
+            fail("Firewall capability checks failed: {0}".format("; ".join(failures)))
 
         self._run_remote_test(ssh_client, "samples-pass_remote_test.py")
 

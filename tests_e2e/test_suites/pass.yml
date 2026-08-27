@@ -6,7 +6,4 @@ images:
   - "endorsed"
   - "endorsed-arm64"
   - "rhel_83"
-  - "centos_610"
-  - "oracle_610"
-  - "rhel_610"
   - "cvm-endorsed"
