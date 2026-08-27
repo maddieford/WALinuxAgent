@@ -92,6 +92,11 @@ class FirewallManager(object):
         """
         try:
             manager = IpTables(wire_server_address)
+            # try modinfo xt_owner/xt_conntrack
+            #  -> if succeeds, continue with iptables
+            #  -> if fails, check if nftables available,
+                #  -> if nftables available, use nftables
+                #  -> if nftables not available, continue with Iptables
             event.info(WALAEventOperation.Firewall, "Using iptables [version {0}] to manage firewall rules", manager.version)
             return manager
         except FirewallManagerNotAvailableError:
