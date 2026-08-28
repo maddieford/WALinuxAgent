@@ -8,6 +8,8 @@ images:
   - "random(endorsed,10)"
 #  - "cvm-endorsed"       # TODO: We only have capacity for the CVM images in eastus2euap, but Test CSE 2.8.0 is only available in centraluseuap. Move this test to eastus2euap once it is published to the second canary region
 locations: "AzureCloud:centraluseuap"   # Test CSE 2.8.0 is currently available only in centraluseuap.
+skip_on_images:
+  - "centos_79"           # TODO: Test CSE 2.8.0 install fails due to golang issues on CentOS 7.9. Remove this once the issue is resolved.
 skip_on_clouds:
   - "AzureChinaCloud"     # TODO: Remove the skip once the extension is published to China cloud
   - "AzureUSGovernment"   # TODO: Remove the skip once the extension is published to Gov cloud
