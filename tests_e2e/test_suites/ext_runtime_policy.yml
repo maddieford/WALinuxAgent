@@ -10,6 +10,7 @@ images:
 locations: "AzureCloud:centraluseuap"   # Test CSE 2.8.0 is currently available only in centraluseuap.
 skip_on_images:
   - "centos_79"           # TODO: Test CSE 2.8.0 install fails due to golang issues on CentOS 7.9. Remove this once the issue is resolved.
+  - "rhel_79"             # TODO: Test CSE 2.8.0 install fails due to golang issues on RHEL 7.9. Remove this once the issue is resolved.
 skip_on_clouds:
   - "AzureChinaCloud"     # TODO: Remove the skip once the extension is published to China cloud
   - "AzureUSGovernment"   # TODO: Remove the skip once the extension is published to Gov cloud
