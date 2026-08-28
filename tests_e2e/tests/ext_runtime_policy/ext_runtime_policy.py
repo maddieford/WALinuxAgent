@@ -26,8 +26,6 @@ from typing import Any, Dict, List
 
 from assertpy import assert_that, fail
 
-from azurelinuxagent.common.future import UTC
-
 from tests_e2e.tests.lib.agent_test import AgentVmTest
 from tests_e2e.tests.lib.agent_test_context import AgentVmTestContext
 from tests_e2e.tests.lib.logging import log
@@ -121,7 +119,7 @@ class ExtRuntimePolicy(AgentVmTest):
         for line in log_contents.splitlines():
             timestamp_match = re.match(r"^time=(?P<timestamp>\S+)", line)
             if timestamp_match is not None and expected_message in line:
-                timestamp = datetime.strptime(timestamp_match.group("timestamp"), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+                timestamp = datetime.fromisoformat(timestamp_match.group("timestamp").replace("Z", "+00:00"))
                 if timestamp >= after_timestamp:
                     matching_lines.append(line)
 
