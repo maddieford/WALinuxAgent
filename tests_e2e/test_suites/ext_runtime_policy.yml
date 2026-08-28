@@ -1,0 +1,13 @@
+#
+# The test suite verifies that the Agent passes runtime policy to policy-capable extensions.
+#
+name: "ExtensionRuntimePolicy"
+tests:
+  - "ext_runtime_policy/ext_runtime_policy.py"
+images:
+  - "random(endorsed,10)"
+  - "cvm-endorsed"
+locations: "AzureCloud:eastus2euap"   # Test CSE 2.8.0 is currently available only in canary.
+skip_on_clouds:
+  - "AzureChinaCloud"     # TODO: Remove the skip once the extension is published to China cloud
+  - "AzureUSGovernment"   # TODO: Remove the skip once the extension is published to Gov cloud
