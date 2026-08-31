@@ -31,12 +31,14 @@ class PassRemoteTest(AgentVmTest):
     def run(self):
         ssh_client = self._context.create_ssh_client()
         failures = []
+        iptables_capability_failure = None
 
         try:
             iptables_version = ssh_client.run_command("iptables --version", use_sudo=True).strip()
             log.info("iptables is available: %s", iptables_version)
         except CommandError:
-            log.info("iptables is not available; skipping the kernel module checks")
+            iptables_capability_failure = "iptables is not available"
+            log.info("%s; skipping the kernel module checks", iptables_capability_failure)
         else:
             unresolved_modules = []
             for module_name in ["xt_owner", "xt_conntrack"]:
@@ -46,21 +48,18 @@ class PassRemoteTest(AgentVmTest):
                     unresolved_modules.append("{0} (exit code: {1})".format(module_name, error.exit_code))
 
             if len(unresolved_modules) > 0:
-                failures.append(
-                    "iptables is available, but modinfo could not resolve the required kernel modules: {0}".format(
-                        ", ".join(unresolved_modules)))
+                iptables_capability_failure = \
+                    "modinfo could not resolve the required kernel modules: {0}".format(", ".join(unresolved_modules))
 
         try:
             firewalld_state = ssh_client.run_command("firewall-cmd --state", use_sudo=True).strip()
         except CommandError:
-            log.info("firewalld is not available or is not running; skipping the backend check")
+            log.info("firewalld is not available or is not running; skipping the firewall capability check")
         else:
             if firewalld_state == "running":
-                firewalld_backend = ssh_client.run_command(
-                    "firewall-cmd --get-backend", use_sudo=True).strip()
-                log.info("firewalld is running with the %s backend", firewalld_backend)
-                if firewalld_backend == "nftables":
-                    failures.append("firewalld is running with the nftables backend")
+                log.info("firewalld is running")
+                if iptables_capability_failure is not None:
+                    failures.append("firewalld is running, but {0}".format(iptables_capability_failure))
             else:
                 log.info("firewalld is present, but not running: %s", firewalld_state)
 
