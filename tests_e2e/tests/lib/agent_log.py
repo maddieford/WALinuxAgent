@@ -433,7 +433,7 @@ class AgentLog(object):
             # [('Microsoft.Azure.Extensions.CustomScript', 'success'), ('Microsoft.GuestConfiguration.ConfigurationforLinux', 'transitioning'), ('RunCommandHandler', 'success')]
             #
             {
-                'message': r"(?s)name=Microsoft.GuestConfiguration.ConfigurationforLinux.*op=Install.*Non-zero exit code: (1.*(Text file busy|Unexpected architecture aarch64)|51.*Unexpected Linux distribution|126.*Exec format error)",
+                'message': r"(?s)name=Microsoft\.GuestConfiguration\.ConfigurationforLinux.*op=Install.*Non-zero exit code: (1.*(Text file busy|Unexpected architecture aarch64)|51.*Unexpected Linux distribution|126.*Exec format error)",
             },
             {
                 'message': r"A new goal state was received, but not all the extensions in the previous goal state have completed.*'Microsoft.GuestConfiguration.ConfigurationforLinux',\s+u?'transitioning'",
