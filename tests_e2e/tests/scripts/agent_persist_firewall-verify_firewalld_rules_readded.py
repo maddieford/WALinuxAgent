@@ -20,18 +20,55 @@
 
 from azurelinuxagent.common.osutil import get_osutil
 from azurelinuxagent.common.utils import shellutil
-from tests_e2e.tests.lib.firewall_manager import Firewalld
+from tests_e2e.tests.lib.firewall_manager import FirewallManager, Firewalld, NfTables
 from tests_e2e.tests.lib.logging import log
+from tests_e2e.tests.lib.retry import retry_if_false
+
+
+def verify_passthrough_rules_are_removed(firewall):
+    agent_name = get_osutil().get_service_name()
+    rules = [Firewalld.ACCEPT_DNS, Firewalld.ACCEPT, Firewalld.DROP]
+
+    log.info("Stopping the agent before adding stale firewalld passthrough rules")
+    shellutil.run_command(["systemctl", "stop", agent_name])
+
+    try:
+        for rule in rules:
+            firewall.add_rule(rule)
+            if not firewall.check_rule(rule):
+                raise Exception("Failed to add the stale {0} firewalld passthrough rule".format(rule))
+    finally:
+        log.info("Restarting the agent to remove stale firewalld passthrough rules")
+        shellutil.run_command(["systemctl", "restart", agent_name])
+
+    rules_are_removed = retry_if_false(
+        lambda: all(not firewall.check_rule(rule) for rule in rules),
+        attempts=5,
+        delay=30)
+
+    if not rules_are_removed:
+        raise Exception("The agent did not remove the stale firewalld passthrough rules. Current state: {0}".format(
+            firewall.get_state()))
+
+    log.info("The agent removed all stale firewalld passthrough rules")
 
 
 def main():
-
     if not Firewalld.is_service_running():
         log.info("firewalld.service is not running and skipping test")
         return
 
     firewall = Firewalld()
     firewall.log_firewall_state("** firewalld.service is running; initial state of the firewall")
+
+    if isinstance(FirewallManager.create(), NfTables):
+        # Older versions of the agent always used firewalld to create passthrough rules when it is in 'running' state.
+        # Newer versions of the agent do not use firewalld (even if it is in 'running' state) when NfTables is the
+        # runtime firewall manager because our passthrough rules are only compatible with Iptables. The agent should
+        # attempt to clean up any passthrough rules created by an old agent when NfTables is the runtime firewall
+        # manager.
+        verify_passthrough_rules_are_removed(firewall)
+        return
 
     for rule in [Firewalld.ACCEPT_DNS, Firewalld.ACCEPT, Firewalld.DROP]:
         log.info(f"***** Verifying {rule} rule")

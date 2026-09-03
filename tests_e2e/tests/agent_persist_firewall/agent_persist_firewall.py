@@ -22,6 +22,7 @@ from tests_e2e.tests.lib.agent_test import AgentVmTest
 from tests_e2e.tests.lib.agent_test_context import AgentVmTestContext
 from tests_e2e.tests.lib.firewall_utilities import FirewallUtilities
 from tests_e2e.tests.lib.logging import log
+from tests_e2e.tests.lib.shell import CommandError
 from tests_e2e.tests.lib.ssh_client import SshClient
 
 
@@ -33,9 +34,11 @@ class AgentPersistFirewallTest(AgentVmTest):
     def __init__(self, context: AgentVmTestContext):
         super().__init__(context)
         self._ssh_client: SshClient = self._context.create_ssh_client()
+        self._expect_firewalld_running = False
 
     def run(self):
         FirewallUtilities.skip_test_if_proxy_agent_is_managing_the_wireserver_endpoint(self._ssh_client)
+        self._expect_firewalld_running = self._is_firewalld_running()
 
         self._test_setup()
         # Test case 1: After test agent install, verify firewalld or network.setup is running
@@ -69,8 +72,19 @@ class AgentPersistFirewallTest(AgentVmTest):
 
     def _verify_persist_firewall_service_running(self):
         log.info("Verifying persist firewall service is running")
-        self._run_remote_test(self._ssh_client, "agent_persist_firewall-verify_persist_firewall_service_running.py", use_sudo=True)
+        command = "agent_persist_firewall-verify_persist_firewall_service_running.py"
+        if self._expect_firewalld_running:
+            command += " --expect-firewalld-running"
+        self._run_remote_test(self._ssh_client, command, use_sudo=True)
         log.info("Successfully verified persist firewall service is running\n")
+
+    def _is_firewalld_running(self):
+        try:
+            is_running = self._ssh_client.run_command("firewall-cmd --state", use_sudo=True).rstrip() == "running"
+        except CommandError:
+            is_running = False
+        log.info("Firewalld is running before test setup: {0}".format(is_running))
+        return is_running
 
     def _verify_firewall_rules_on_boot(self, boot_name):
         log.info("Verifying firewall rules on {0}".format(boot_name))
