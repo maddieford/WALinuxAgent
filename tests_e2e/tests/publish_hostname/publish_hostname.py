@@ -72,7 +72,8 @@ class PublishHostname(AgentVmTest):
                     lookup_cmd = "host {0}".format(self._private_ip)
                     dns_regex = r".*pointer\s(?P<hostname>.*)\.internal\.(cloudapp\.net|chinacloudapp\.cn|usgovcloudapp\.net).*"
                 elif "debian" in distro:
-                    self._ssh_client.run_command("apt install -y dnsutils", use_sudo=True)
+                    # Refresh package metadata so dnsutils and its exact-version bind9 dependencies are in sync.
+                    self._ssh_client.run_command("apt-get update && apt-get install -y dnsutils", use_sudo=True)
                 elif "alma" in distro or "rocky" in distro:
                     self._ssh_client.run_command("dnf install -y bind-utils", use_sudo=True)
                 else:
