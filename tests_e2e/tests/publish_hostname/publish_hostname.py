@@ -72,8 +72,9 @@ class PublishHostname(AgentVmTest):
                     lookup_cmd = "host {0}".format(self._private_ip)
                     dns_regex = r".*pointer\s(?P<hostname>.*)\.internal\.(cloudapp\.net|chinacloudapp\.cn|usgovcloudapp\.net).*"
                 elif "debian" in distro:
-                    # Debian 11 is EOL, so allow its expired repository metadata when refreshing package versions.
-                    self._ssh_client.run_command("apt-get -o Acquire::Check-Valid-Until=false update && apt-get install -y dnsutils", use_sudo=True)
+                    # Debian 11 is EOL, so allow its expired repository metadata when refreshing package versions
+                    self._ssh_client.run_command("apt-get -o Acquire::Check-Valid-Until=false update", use_sudo=True)
+                    self._ssh_client.run_command("apt-get install -y dnsutils", use_sudo=True)
                 elif "alma" in distro or "rocky" in distro:
                     self._ssh_client.run_command("dnf install -y bind-utils", use_sudo=True)
                 else:
