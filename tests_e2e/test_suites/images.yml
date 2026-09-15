@@ -151,8 +151,7 @@ image-sets:
 #
 # NOTE ON VM SIZE FOR ARM64 VMs:
 #      The VM size chosen by LISA for ARM64 VMs has recently produced VM that do not start, so we explicitly use
-#      Standard_D2ps_v6 (which was the size LISA was using previously). Consider removing this explicit size
-#      if/when the issue with the size selected by LISA is fixed.
+#      Standard_D2ps_v6. Consider removing this explicit size if/when the issue with the size selected by LISA is fixed.
 #
 #
 images:
