@@ -151,7 +151,7 @@ image-sets:
 #
 # NOTE ON VM SIZE FOR ARM64 VMs:
 #      The VM size chosen by LISA for ARM64 VMs has recently produced VM that do not start, so we explicitly use
-#      Standard_B2pls_v2 (which was the size LISA was using previously). Consider removing this explicit size
+#      Standard_D2ps_v6 (which was the size LISA was using previously). Consider removing this explicit size
 #      if/when the issue with the size selected by LISA is fixed.
 #
 #
@@ -176,7 +176,7 @@ images:
       urn: "microsoftcblmariner:azure-linux-3:azure-linux-3-arm64:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    azure-linux_3_cvm:
@@ -197,7 +197,7 @@ images:
       urn: "microsoftazurelinux:azurelinux-4:4-arm64:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    centos_610: "OpenLogic:CentOS:6.10:latest"
@@ -216,7 +216,7 @@ images:
       urn: "Debian:debian-11:11-backports-arm64-v2:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    flatcar:
@@ -228,7 +228,7 @@ images:
       urn: "kinvolk:flatcar-container-linux-corevm:stable:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    mariner_1:
@@ -240,7 +240,7 @@ images:
       urn: "microsoftcblmariner:cbl-mariner:cbl-mariner-2-arm64:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    oracle_610: "Oracle:Oracle-Linux:6.10:latest" # Python 2.6.6; not in test run
@@ -260,7 +260,7 @@ images:
       urn: "Oracle:Oracle-Linux:ol10-arm64-lvm-gen2:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    rhel_610: "RedHat:RHEL:6.10:latest"
@@ -288,7 +288,7 @@ images:
       urn: "RedHat:rhel-arm64:9_5-arm64:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    rhel_10_0:
@@ -369,7 +369,7 @@ images:
       urn: "Canonical:0001-com-ubuntu-server-jammy:22_04-lts-arm64:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    ubuntu_2204_minimal: "Canonical:0001-com-ubuntu-minimal-jammy:minimal-22_04-lts-gen2:latest"
@@ -388,7 +388,7 @@ images:
       urn: "Canonical:ubuntu-24_04-lts:server-arm64:latest"
       vm_sizes:
          # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_B2pls_v2"
+         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    ubuntu_2404_minimal: "Canonical:ubuntu-24_04-lts:minimal:latest"
