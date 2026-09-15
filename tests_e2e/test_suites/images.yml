@@ -258,6 +258,9 @@ images:
          AzureChinaCloud: []
    oracle_10_arm64:
       urn: "Oracle:Oracle-Linux:ol10-arm64-lvm-gen2:latest"
+      vm_sizes:
+         # See comment above wrt VM sizes for ARM64 machines
+         - "Standard_B2pls_v2"
       locations:
          AzureChinaCloud: []
    rhel_610: "RedHat:RHEL:6.10:latest"
