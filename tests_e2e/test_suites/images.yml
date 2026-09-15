@@ -199,6 +199,7 @@ images:
          # See comment above wrt VM sizes for ARM64 machines
          - "Standard_D2ps_v6"
       locations:
+         AzureUSGovernment: []   # TODO: This image is not available in Gov cloud. Update this once the image is available in Gov cloud.
          AzureChinaCloud: []
    centos_610: "OpenLogic:CentOS:6.10:latest"
    centos_75: "OpenLogic:CentOS:7.5:latest"
