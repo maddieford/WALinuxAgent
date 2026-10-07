@@ -19,7 +19,6 @@
 
 import os
 import platform
-import shutil
 import struct
 import subprocess
 
@@ -41,14 +40,27 @@ def _yes_no(value):
     return "yes" if value else "no"
 
 
+def _find_executable(name):
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
 def _is_cpuid_module_available():
-    if shutil.which("modinfo") is None:
+    modinfo = _find_executable("modinfo")
+    if modinfo is None:
         return False
-    return subprocess.call(
-        ["modinfo", "cpuid"],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    ) == 0
+    devnull = open(os.devnull, "w")
+    try:
+        return subprocess.call(
+            [modinfo, "cpuid"],
+            stdout=devnull,
+            stderr=devnull
+        ) == 0
+    finally:
+        devnull.close()
 
 
 def _log_cpuid_state(stage):
@@ -64,7 +76,7 @@ def _load_cpuid_module():
     command = ["modprobe", "cpuid"]
     log.info("Loading the CPUID module: %s", " ".join(command))
     try:
-        result = subprocess.run(
+        process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -74,18 +86,26 @@ def _load_cpuid_module():
         log.info("Failed to load the CPUID module: %s", error)
         return
 
-    if result.stdout:
-        log.info("modprobe stdout: %s", result.stdout.rstrip())
-    if result.stderr:
-        log.info("modprobe stderr: %s", result.stderr.rstrip())
-    if result.returncode != 0:
+    stdout, stderr = process.communicate()
+    if stdout:
+        log.info("modprobe stdout: %s", stdout.rstrip())
+    if stderr:
+        log.info("modprobe stderr: %s", stderr.rstrip())
+    if process.returncode != 0:
         log.info("Failed to load the CPUID module; continuing with the device read")
+
+
+def _pread(descriptor, count, offset):
+    if hasattr(os, "pread"):
+        return os.pread(descriptor, count, offset)
+    os.lseek(descriptor, offset, os.SEEK_SET)
+    return os.read(descriptor, count)
 
 
 def _cpuid(leaf):
     descriptor = os.open(CPUID_DEVICE, os.O_RDONLY)
     try:
-        data = os.pread(descriptor, 16, leaf)
+        data = _pread(descriptor, 16, leaf)
     finally:
         os.close(descriptor)
 

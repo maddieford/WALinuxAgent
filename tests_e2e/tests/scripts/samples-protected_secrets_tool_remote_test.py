@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-import shutil
+import os
 import subprocess
 
 from tests_e2e.tests.lib.logging import log
@@ -25,6 +25,14 @@ from tests_e2e.tests.lib.remote_test import run_remote_test
 
 
 SECRETS_TOOL = "azure-protected-secrets-tool"
+
+
+def _find_executable(name):
+    for directory in os.environ.get("PATH", "").split(os.pathsep):
+        path = os.path.join(directory, name)
+        if os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
 
 
 def _is_cvm_tool():
@@ -53,7 +61,7 @@ def _is_cvm_tool():
 
 
 def main():
-    tool = shutil.which(SECRETS_TOOL)
+    tool = _find_executable(SECRETS_TOOL)
     assert tool is not None, "{0} is not available on PATH".format(SECRETS_TOOL)
     log.info("Fallback tool: %s", tool)
 
