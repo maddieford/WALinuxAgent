@@ -20,17 +20,17 @@
 from tests_e2e.tests.lib.agent_test import AgentVmTest
 
 
-class PassRemoteTest(AgentVmTest):
+class ProtectedSecretsToolRemoteTest(AgentVmTest):
     """
-    Checks whether the CPUID device is available and whether the cpuid module can be loaded when needed.
+    Checks the azure-protected-secrets-tool fallback used by cloud-init.
     """
     def run(self):
         self._run_remote_test(
             self._context.create_ssh_client(),
-            "samples-pass_remote_test.py",
+            "samples-protected_secrets_tool_remote_test.py",
             use_sudo=True
         )
 
 
 if __name__ == "__main__":
-    PassRemoteTest.run_from_command_line()
+    ProtectedSecretsToolRemoteTest.run_from_command_line()

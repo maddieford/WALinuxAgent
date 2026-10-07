@@ -20,17 +20,16 @@
 from tests_e2e.tests.lib.agent_test import AgentVmTest
 
 
-class PassRemoteTest(AgentVmTest):
+class NativeCpuidRemoteTest(AgentVmTest):
     """
-    Checks whether the CPUID device is available and whether the cpuid module can be loaded when needed.
+    Detects a Hyper-V confidential VM by executing CPUID directly from Python.
     """
     def run(self):
         self._run_remote_test(
             self._context.create_ssh_client(),
-            "samples-pass_remote_test.py",
-            use_sudo=True
+            "samples-native_cpuid_remote_test.py"
         )
 
 
 if __name__ == "__main__":
-    PassRemoteTest.run_from_command_line()
+    NativeCpuidRemoteTest.run_from_command_line()

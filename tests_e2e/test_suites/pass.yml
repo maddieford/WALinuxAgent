@@ -2,4 +2,6 @@ name: "Pass"
 tests:
   - "samples/pass_test.py"
   - "samples/pass_remote_test.py"
+  - "samples/native_cpuid_remote_test.py"
+  - "samples/protected_secrets_tool_remote_test.py"
 images: "ubuntu_2204"
