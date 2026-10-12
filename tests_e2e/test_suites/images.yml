@@ -392,9 +392,6 @@ images:
          AzureUSGovernment: []
    ubuntu_2204_arm64:
       urn: "Canonical:0001-com-ubuntu-server-jammy:22_04-lts-arm64:latest"
-      vm_sizes:
-         # See comment above wrt VM sizes for ARM64 machines
-         - "Standard_D2ps_v6"
       locations:
          AzureChinaCloud: []
    ubuntu_2204_minimal: "Canonical:0001-com-ubuntu-minimal-jammy:minimal-22_04-lts-gen2:latest"
