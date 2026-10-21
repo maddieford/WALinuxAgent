@@ -5,6 +5,31 @@
   #
 
 parameters:
+  - name: subId
+    displayName: Existing VM subscription ID (CSE-only test; provide all three VM parameters)
+    type: string
+    default: "-"
+
+  - name: rgName
+    displayName: Existing VM resource group (CSE-only test)
+    type: string
+    default: "-"
+
+  - name: VMname
+    displayName: Existing VM name (CSE-only test)
+    type: string
+    default: "-"
+
+  - name: vm_user
+    displayName: Existing VM SSH username (log collection only)
+    type: string
+    default: "waagent"
+
+  - name: ssh_host
+    displayName: Existing VM SSH host (log collection; "-" discovers public/private IP)
+    type: string
+    default: "-"
+
     #
     # See the test wiki for a description of the parameters
     #
@@ -67,6 +92,7 @@ pool:
 
 jobs:
   - job: "ExecuteTests"
+    condition: ${{ and(eq(parameters.subId, '-'), eq(parameters.rgName, '-'), eq(parameters.VMname, '-')) }}
     timeoutInMinutes: 150
 
     steps:
@@ -153,3 +179,54 @@ jobs:
           searchFolder: $(Build.ArtifactStagingDirectory)
           failTaskOnFailedTests: true
 
+  - job: "AddCseToExistingVm"
+    displayName: "Install and verify CSE on an existing VM"
+    condition: ${{ or(ne(parameters.subId, '-'), ne(parameters.rgName, '-'), ne(parameters.VMname, '-')) }}
+    timeoutInMinutes: 45
+    steps:
+      - ${{ if ne(parameters.collect_logs, 'no') }}:
+        - task: DownloadSecureFile@1
+          name: cseSshKey
+          displayName: "Download SSH key for VM log collection"
+          inputs:
+            secureFile: 'id_rsa'
+
+      - task: AzureCLI@2
+        displayName: "Run existing VM CSE test (no agent setup)"
+        inputs:
+          azureSubscription: $(connection_info)
+          scriptType: bash
+          scriptLocation: inlineScript
+          inlineScript: |
+            python3 "$(Build.SourcesDirectory)/tests_e2e/tests/cse/add_cse.py" \
+              --subscription "$CSE_SUBSCRIPTION_ID" \
+              --resource-group "$CSE_RESOURCE_GROUP" \
+              --vm "$CSE_VM_NAME" \
+              --junit-file "$(Build.ArtifactStagingDirectory)/existing-vm-cse/cse.junit.xml" \
+              --collect-logs "$CSE_COLLECT_LOGS" \
+              --ssh-host "$CSE_SSH_HOST" \
+              --ssh-user "$CSE_SSH_USER" \
+              --identity-file "$CSE_SSH_KEY"
+        env:
+          CSE_SUBSCRIPTION_ID: ${{ parameters.subId }}
+          CSE_RESOURCE_GROUP: ${{ parameters.rgName }}
+          CSE_VM_NAME: ${{ parameters.VMname }}
+          CSE_COLLECT_LOGS: ${{ parameters.collect_logs }}
+          CSE_SSH_HOST: ${{ parameters.ssh_host }}
+          CSE_SSH_USER: ${{ parameters.vm_user }}
+          CSE_SSH_KEY: $(cseSshKey.secureFilePath)
+
+      - task: PublishTestResults@2
+        displayName: "Publish existing VM CSE test result"
+        condition: always()
+        inputs:
+          testResultsFormat: JUnit
+          testResultsFiles: cse.junit.xml
+          searchFolder: $(Build.ArtifactStagingDirectory)/existing-vm-cse
+          failTaskOnFailedTests: true
+          failTaskOnMissingResultsFile: true
+
+      - publish: $(Build.ArtifactStagingDirectory)/existing-vm-cse
+        artifact: cse-test-result
+        displayName: "Publish CSE test report and VM logs"
+        condition: always()

@@ -3,3 +3,4 @@ tests:
   - "samples/pass_test.py"
   - "samples/pass_remote_test.py"
 images: "ubuntu_2204"
+install_test_agent: false
