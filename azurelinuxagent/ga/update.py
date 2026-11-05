@@ -469,6 +469,7 @@ class UpdateHandler(object):
             remote_access_handler = get_remote_access_handler(protocol)
 
             agent_update_handler = get_agent_update_handler(protocol)
+            agent_update_handler.log_agent_manifest(self._goal_state)
 
             self._ensure_no_orphans()
             self._emit_restart_event()

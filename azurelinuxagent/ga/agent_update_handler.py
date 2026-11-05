@@ -134,6 +134,14 @@ class AgentUpdateHandler(object):
         else:
             return UpdateMode.SelfUpdate
 
+    def log_agent_manifest(self, goal_state):
+        try:
+            logger.info("Fetching agent manifest for startup diagnostics")
+            agent_family = self._get_agent_family_manifest(goal_state)
+            goal_state.fetch_agent_manifest(agent_family.name, agent_family.uris)
+        except Exception as err:
+            logger.warn("Failed to log agent manifest at startup: {0}", textutil.format_exception(err))
+
     def run(self, goal_state, ext_gs_updated):
 
         try:
