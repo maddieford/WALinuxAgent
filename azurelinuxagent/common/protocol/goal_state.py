@@ -185,6 +185,8 @@ class GoalState(object):
         try:
             is_fast_track = self.extensions_goal_state.source == GoalStateSource.FastTrack
             xml_text = self._wire_client.fetch_manifest(manifest_type, uris, use_verify_header=is_fast_track)
+            if manifest_type == "agent":
+                logger.info("Agent manifest [{0}]:\n{1}", name, xml_text)
             if self._save_to_history:
                 self._history.save_manifest(name, xml_text)
             return ExtensionManifest(xml_text)
