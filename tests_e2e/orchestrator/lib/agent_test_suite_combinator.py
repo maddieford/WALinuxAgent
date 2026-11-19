@@ -429,8 +429,8 @@ class AgentTestSuitesCombinator(Combinator):
             "vm_tags": vm_tags
         }
 
-        if shared_gallery != '':
-            # Currently all the images in our shared gallery require secure boot
+        if shared_gallery != '' and self.runbook.image == '':
+            # Suite-owned gallery images require Secure Boot; explicit image overrides may not.
             environment['c_platform'][0]['requirement']["features"] = {
                 "items": [
                     {

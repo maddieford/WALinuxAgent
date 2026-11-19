@@ -149,8 +149,7 @@ class AgentTestSuite(LisaTestSuite):
         self._vm_size: str  # VM size to use when creating scale sets; empty means use the template default
         self._security_type: str  # ARM security type (e.g. 'ConfidentialVM') to use when deploying scale sets; empty means template default
 
-        self._is_vhd: bool  # True when the test VMs were created by LISA from a VHD; this is usually used to validate a new VHD and the test Agent is not installed
-        self._vhd_agent_versions: Dict[str, str]
+        self._image_agent_versions: Dict[str, str]
 
         # username and public SSH key for the admin account used to connect to the test VMs
         self._user: str
@@ -211,8 +210,7 @@ class AgentTestSuite(LisaTestSuite):
         self._vm_size = variables["c_vm_size"]
         self._security_type = variables["c_security_type"]
 
-        self._is_vhd = variables["c_is_vhd"]
-        self._vhd_agent_versions = {}
+        self._image_agent_versions = {}
 
         self._user = variables["user"]
         self._identity_file = variables["identity_file"]
@@ -409,10 +407,8 @@ class AgentTestSuite(LisaTestSuite):
 
     def _setup_test_nodes(self, test_context: AgentTestContext) -> None:
         """
-        Prepares the test nodes for execution of the test suite (installs tools and the test agent, etc)
+        Prepares the test nodes for execution while preserving the image's agent.
         """
-        install_test_agent = self._test_suites[0].install_test_agent  # All suites in the environment have the same value for install_test_agent
-
         log.info("")
         log.info("************************************ [Test Nodes Setup] ************************************")
         log.info("")
@@ -490,26 +486,16 @@ class AgentTestSuite(LisaTestSuite):
             command = "update-waagent-conf Debug.EnableExtSignatureValidation=y"
             log.info("%s\n%s", command, ssh_client.run_command(command, use_sudo=True))
 
-            if self._is_vhd:
-                log.info("Using a VHD; will not install the Test Agent.")
-            elif not install_test_agent:
-                log.info("Will not install the Test Agent per the test suite configuration.")
-            else:
-                log.info("Installing the Test Agent on the test node")
-                command = f"install-agent --package ~/tmp/{self._test_agent_package_path.name} --version {AGENT_VERSION}"
-                log.info("%s\n%s", command, ssh_client.run_command(command, use_sudo=True))
+            log.info("Preserving the image agent; will not install the Test Agent or change its auto-update configuration.")
 
             log.info("Completed test node setup")
 
-    def _check_vhd_agent_version(self, test_context: AgentTestContext) -> None:
-        if not self._is_vhd:
-            return
-
+    def _check_image_agent_version(self, test_context: AgentTestContext) -> None:
         for node in test_context.get_test_nodes():
             ssh_client = SshClient(ip_address=node.ip_address, username=self._user, identity_file=Path(self._identity_file))
             output = ssh_client.run_command("waagent-version", use_sudo=True)
             log.info("Checking image agent version on %s:\n%s", node.name, output)
-            self._vhd_agent_versions[node.name] = verify_image_agent_version(output, self._vhd_agent_versions.get(node.name))
+            self._image_agent_versions[node.name] = verify_image_agent_version(output, self._image_agent_versions.get(node.name))
 
     @staticmethod
     def _check_ssh_connectivity(ssh_client: SshClient) -> None:
@@ -604,7 +590,7 @@ class AgentTestSuite(LisaTestSuite):
                         try:
                             if not self._skip_setup:
                                 self._setup_test_nodes(test_context)
-                            self._check_vhd_agent_version(test_context)
+                            self._check_image_agent_version(test_context)
                         except:
                             test_suite_success = False
                             raise
@@ -674,7 +660,7 @@ class AgentTestSuite(LisaTestSuite):
                     summary: List[str] = []
                     ignore_error_rules: List[Dict[str, Any]] = []
 
-                    self._check_vhd_agent_version(test_context)
+                    self._check_image_agent_version(test_context)
 
                     for test in suite.tests:
                         test_full_name = f"{suite_name}-{test.name}"
@@ -733,7 +719,7 @@ class AgentTestSuite(LisaTestSuite):
                             log.warning("%s failed and blocks the suite. Stopping suite execution.", test.name)
                             break
 
-                    self._check_vhd_agent_version(test_context)
+                    self._check_image_agent_version(test_context)
 
                     log.info("")
                     log.info("******** [Test Results]")
