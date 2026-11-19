@@ -43,7 +43,8 @@ variable:
       - agent_not_provisioned
       - agent_persist_firewall
       - agent_status
-      - agent_update
+      # VHD validation must keep the baked-in agent; this suite installs custom agent versions.
+      # - agent_update
 #      Disabling agent_update_with_signature test suite. The changes in CRP to include the agent signatures in the goal
 #      state were disabled due to concerns with svd size for uniform scalesets. Once CRP re-enables the agent signatures
 #      in the goal state, we can re-enable this test suite.

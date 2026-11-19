@@ -54,6 +54,7 @@ import tests_e2e
 from tests_e2e.orchestrator.lib.agent_test_loader import TestSuiteInfo
 from tests_e2e.orchestrator.lib.agent_test_result import AgentTestResult
 from tests_e2e.tests.lib.agent_log import AgentLog, AgentLogRecord
+from tests_e2e.tests.lib.agent_version import verify_image_agent_version
 from tests_e2e.tests.lib.agent_test_context import AgentTestContext, AgentVmTestContext, AgentVmssTestContext
 from tests_e2e.tests.lib.logging import log, set_thread_name, set_current_thread_log
 from tests_e2e.tests.lib.network_security_rule import NetworkSecurityRule
@@ -149,6 +150,7 @@ class AgentTestSuite(LisaTestSuite):
         self._security_type: str  # ARM security type (e.g. 'ConfidentialVM') to use when deploying scale sets; empty means template default
 
         self._is_vhd: bool  # True when the test VMs were created by LISA from a VHD; this is usually used to validate a new VHD and the test Agent is not installed
+        self._vhd_agent_versions: Dict[str, str]
 
         # username and public SSH key for the admin account used to connect to the test VMs
         self._user: str
@@ -210,6 +212,7 @@ class AgentTestSuite(LisaTestSuite):
         self._security_type = variables["c_security_type"]
 
         self._is_vhd = variables["c_is_vhd"]
+        self._vhd_agent_versions = {}
 
         self._user = variables["user"]
         self._identity_file = variables["identity_file"]
@@ -498,6 +501,16 @@ class AgentTestSuite(LisaTestSuite):
 
             log.info("Completed test node setup")
 
+    def _check_vhd_agent_version(self, test_context: AgentTestContext) -> None:
+        if not self._is_vhd:
+            return
+
+        for node in test_context.get_test_nodes():
+            ssh_client = SshClient(ip_address=node.ip_address, username=self._user, identity_file=Path(self._identity_file))
+            output = ssh_client.run_command("waagent-version", use_sudo=True)
+            log.info("Checking image agent version on %s:\n%s", node.name, output)
+            self._vhd_agent_versions[node.name] = verify_image_agent_version(output, self._vhd_agent_versions.get(node.name))
+
     @staticmethod
     def _check_ssh_connectivity(ssh_client: SshClient) -> None:
         # We may be trying to connect to the test node while it is still booting. Execute a simple command to check that SSH is ready,
@@ -588,12 +601,13 @@ class AgentTestSuite(LisaTestSuite):
                     test_context = self._create_test_context()
 
                     try:
-                        if not self._skip_setup:
-                            try:
+                        try:
+                            if not self._skip_setup:
                                 self._setup_test_nodes(test_context)
-                            except:
-                                test_suite_success = False
-                                raise
+                            self._check_vhd_agent_version(test_context)
+                        except:
+                            test_suite_success = False
+                            raise
 
                         check_log_start_time = datetime_min_utc
 
@@ -660,6 +674,8 @@ class AgentTestSuite(LisaTestSuite):
                     summary: List[str] = []
                     ignore_error_rules: List[Dict[str, Any]] = []
 
+                    self._check_vhd_agent_version(test_context)
+
                     for test in suite.tests:
                         test_full_name = f"{suite_name}-{test.name}"
                         test_start_time: datetime.datetime = datetime.datetime.now(UTC)
@@ -716,6 +732,8 @@ class AgentTestSuite(LisaTestSuite):
                         if not test_success and test.blocks_suite:
                             log.warning("%s failed and blocks the suite. Stopping suite execution.", test.name)
                             break
+
+                    self._check_vhd_agent_version(test_context)
 
                     log.info("")
                     log.info("******** [Test Results]")

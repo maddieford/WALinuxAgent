@@ -30,13 +30,23 @@ fi
 # crontab and ping are not installed on some distros, e.g. Ubuntu Minimal
 if ! command -v crontab; then
     echo "crontab is not available. Installing cron."
-    apt-get update
-    apt-get install -y cron
+    if [[ $(get_distro.py) == *"azurelinux"* ]]; then
+        tdnf makecache
+        tdnf install -y cronie
+    else
+        apt-get update
+        apt-get install -y cron
+    fi
 fi
 if ! command -v ping; then
     echo "ping is not available. Installing iputils-ping."
-    apt-get update
-    apt-get install -y iputils-ping
+    if [[ $(get_distro.py) == *"azurelinux"* ]]; then
+        tdnf makecache
+        tdnf install -y iputils
+    else
+        apt-get update
+        apt-get install -y iputils-ping
+    fi
 fi
 
 echo "Creating cron jobs to access Wireserver on reboot"
