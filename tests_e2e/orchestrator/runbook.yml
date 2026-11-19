@@ -3,6 +3,7 @@ name: $(name)
 testcase:
   - criteria:
       area: waagent
+    timeout: 7200
 
 extension:
   - "./lib"
