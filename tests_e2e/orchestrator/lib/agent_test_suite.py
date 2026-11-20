@@ -491,6 +491,10 @@ class AgentTestSuite(LisaTestSuite):
             log.info("Completed test node setup")
 
     def _check_image_agent_version(self, test_context: AgentTestContext) -> None:
+        if len(self._test_suites) == 1 and self._test_suites[0].name == "InitialAgentUpdate":
+            log.info("InitialAgentUpdate verifies the intentional agent update instead of enforcing a frozen version.")
+            return
+
         for node in test_context.get_test_nodes():
             ssh_client = SshClient(ip_address=node.ip_address, username=self._user, identity_file=Path(self._identity_file))
             output = ssh_client.run_command("waagent-version", use_sudo=True)

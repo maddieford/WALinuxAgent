@@ -19,6 +19,7 @@
 from tests_e2e.tests.lib.agent_test import AgentVmTest
 from tests_e2e.tests.lib.agent_test_context import AgentVmTestContext
 from tests_e2e.tests.lib.agent_update_helpers import verify_current_agent_version
+from tests_e2e.tests.lib.agent_version import parse_agent_versions
 from tests_e2e.tests.lib.logging import log
 
 
@@ -30,9 +31,12 @@ class LatestAgentVersion(AgentVmTest):
     def __init__(self, context: AgentVmTestContext):
         super().__init__(context)
         self._ssh_client = self._context.create_ssh_client()
-        self._test_version = "2.8.9.9"
+        self._test_version = ""
 
     def run(self):
+        version_output = self._ssh_client.run_command("waagent-version", use_sudo=True)
+        self._test_version, running_version = parse_agent_versions(version_output)
+        log.info("Installed image agent: %s; current goal-state agent: %s", self._test_version, running_version)
 
         log.info("Testing daemon picks latest version when AutoUpdate.UpdateToLatestVersion=y")
         log.info("Updating AutoUpdate.UpdateToLatestVersion=y and AutoUpdate.Enabled=n")
@@ -44,7 +48,7 @@ class LatestAgentVersion(AgentVmTest):
         log.info("Updated: %s", output)
         latest_version: str = self._ssh_client.run_command("agent_update-get_latest_version_from_manifest.py --family_type Prod",
                                                            use_sudo=True).rstrip()
-        log.info("Verifying agent updated to latest version: %s from custom image test version: %s", latest_version, self._test_version)
+        log.info("Verifying agent updated to latest version: %s from installed image version: %s", latest_version, self._test_version)
         verify_current_agent_version(self._ssh_client, latest_version)
 
         log.info("Testing daemon picks latest downloaded version when AutoUpdate.UpdateToLatestVersion=n")
