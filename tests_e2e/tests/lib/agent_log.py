@@ -317,7 +317,7 @@ class AgentLog(object):
             #
             {
                 'message': r"(Failed to mount resource disk)|(unable to detect disk topology)",
-                'if': lambda r: r.prefix == 'Daemon' and DISTRO_NAME == 'flatcar'
+                'if': lambda r: r.prefix == 'Daemon' and DISTRO_NAME in ('flatcar', 'alma', 'rocky')
             },
             {
                 'message': r"(HTTPS is unavailable and required)|(Unable to setup the persistent firewall rules.*Read-only file system)",
